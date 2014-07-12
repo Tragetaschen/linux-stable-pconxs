@@ -1,0 +1,113 @@
+/dts-v1/;
+#include "imx6dl-trizeps7.dtsi"
+
+/ {
+	model = "Target Systemelektronik U100";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		left {
+			label = "Key L";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_L>;
+		};
+		right {
+			label = "Key R";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_R>;
+		};
+	};
+};
+
+&iomuxc {
+	u100 {
+		pinctrl_gpio_keys: gpio_keysgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_7__GPIO1_IO07	0x80000000
+				MX6QDL_PAD_GPIO_8__GPIO1_IO08	0x80000000
+			>;
+		};
+		pinctrl_solomon: solomon {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL4__GPIO4_IO14	0x80000000
+			>;
+		};
+
+ 		pinctrl_enet_4_rgmii: enetgrp-4-rgmii {
+			fsl,pins = <
+				MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b0b0
+				MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x1b0b0
+				MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x1b0b0
+				MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b0b0
+				MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b0b0
+				MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b0b0
+				MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x1b0b0
+				MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x1b0b0
+				MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x1b0b0
+				MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x1b0b0
+				MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x1b0b0
+				MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x1b0b0
+				MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x1b0b0
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
+				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
+				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
+			>;
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	temp: temp@4E {
+		compatible = "national,lm75";
+		reg = <0x4E>;
+		status = "okay";
+	};
+	/* No driver in 3.14.28 (backport?)
+	accel: accel@1C {
+		compatible = "fsl,mma8452";
+		reg = <0x1C>;
+		status = "okay";
+	};*/
+};
+&i2c2 {
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
+	};
+	ssd1306: ssd1306@3C {
+		compatible = "solomon,ssd1306fb-i2c";
+		reg = <0x3C>;
+		status = "okay";
+		solomon,height = <32>;
+		solomon,width = <128>;
+		reset-gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_solomon>;
+	};
+	ledsleft: pca9553@62 {
+		compatible = "nxp,pca9553";
+		reg = < 0x62 >;
+	};
+	ledsright: pca9553@63 {
+		compatible = "nxp,pca9553";
+		reg = < 0x63 >;
+	};
+};
+
+&fec {
+	pinctrl-0 = <&pinctrl_enet_4_rgmii>;
+	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+	reset-gpio = <&gpio3 13 0>;
+	wake-up-gpio = <&gpio6 7 0>;
+};
