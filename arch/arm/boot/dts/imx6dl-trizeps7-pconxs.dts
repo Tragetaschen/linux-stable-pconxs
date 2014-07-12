@@ -1,0 +1,112 @@
+/dts-v1/;
+#include "imx6dl-trizeps7.dtsi"
+
+/ {
+	model = "Keith und Koep i.MX6 DualLite Trizeps VII base Board mounted on the pConXS";
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2 0 30517 PWM_POLARITY_INVERTED>;
+		enable-gpios = <&gpio4 20 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+		status = "okay";
+	};
+
+	soc {
+		display0: display@di0 {
+			compatible = "fsl,imx-parallel-display";
+			interface-pix-fmt = "bgr666";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ipu1_1>;
+			status = "okay";
+			display-timings {
+				480x800p75 {
+					native-mode;
+					clock-frequency = <30720000>;
+					hactive = <480>;
+					vactive = <800>;
+					hback-porch = <10>;
+					hfront-porch = <8>;
+					vback-porch = <2>;
+					vfront-porch = <2>;
+					hsync-len = <10>;
+					vsync-len = <2>;
+					vsync-active = <0>;
+				};
+			};
+
+			/*port {
+				display0_in: endpoint {
+					remote-endpoint = <&ipu1_di0_disp0>;
+				};
+			};*/
+		};
+	};
+};
+
+&iomuxc {
+	pconxs {
+		pinctrl_enet_4_rmii: enetgrp-4-rmii {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO       0x1b0b0
+				MX6QDL_PAD_ENET_MDC__ENET_MDC         0x1b0b0
+				MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0   0x80000000
+				MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1   0x80000000
+				MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN    0x80000000
+				MX6QDL_PAD_ENET_RX_ER__ENET_RX_ER     0x80000000
+				MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN     0x80000000
+				MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0   0x80000000
+				MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1   0x80000000
+				MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL 0x1b0b0
+				MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
+			>;
+		};
+	};
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+	temp: temp@4E {
+		compatible = "national,lm75";
+		reg = <0x4E>;
+		status = "okay";
+	};
+	accel: accel@1C {
+		compatible = "fsl,mma8452";
+		reg = <0x1C>;
+		status = "okay";
+	};
+};
+&i2c2 {
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
+	};
+};
+
+&fec {
+	pinctrl-0 = <&pinctrl_enet_4_rmii>;
+	phy-mode = "rmii";
+	status = "okay";
+	phy-supply = <&vgen1_reg>;
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&usbotg {
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+	reset-gpio = <&gpio3 13 0>;
+	wake-up-gpio = <&gpio6 7 0>;
+};
