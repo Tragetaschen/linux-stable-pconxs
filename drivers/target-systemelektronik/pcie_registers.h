@@ -1,0 +1,60 @@
+#ifndef _PCIE_REGISTERS_H
+#define _PCIE_REGISTERS_H
+
+#define PCIE_ATU_VIEWPORT               0x900
+#define PCIE_ATU_REGION_INBOUND         (0x1 << 31)
+#define PCIE_ATU_REGION_INDEX0          (0x0 << 0)
+#define PCIE_ATU_REGION_INDEX1          (0x1 << 0)
+#define PCIE_ATU_CR1                    0x904
+#define PCIE_ATU_TYPE_MEM               (0x0 << 0)
+#define PCIE_ATU_CR2                    0x908
+#define PCIE_ATU_ENABLE                 (0x1 << 31)
+#define PCIE_ATU_LOWER_BASE             0x90C
+#define PCIE_ATU_UPPER_BASE             0x910
+#define PCIE_ATU_LIMIT                  0x914
+#define PCIE_ATU_LOWER_TARGET           0x918
+#define PCIE_ATU_UPPER_TARGET           0x91C
+
+#define FPGA_SYSTEM_BASE	0x000
+#define FPGA_ADC_BASE		0x100
+#define FPGA_FLASH_BASE		0x200
+#define FPGA_DAC_BASE		0x300
+#define FPGA_MUX_BASE		0x400
+#define FPGA_STREAM_BASE	0x500
+#define FPGA_AFE_BASE		0x600
+#define FPGA_AFE2_BASE		0x700
+
+#define FPGA_EXT_FREQ		(FPGA_SYSTEM_BASE + 0x00)
+#define FPGA_PLL_MULT		(FPGA_SYSTEM_BASE + 0x08)
+#define FPGA_ACTIVE_CLOCK	(FPGA_SYSTEM_BASE + 0x10)
+#define FPGA_BUILD_TIME		(FPGA_SYSTEM_BASE + 0x14)
+#define FPGA_BUILD_NUMBER	(FPGA_SYSTEM_BASE + 0x18)
+#define FPGA_VERSION		(FPGA_SYSTEM_BASE + 0x1c)
+
+#define FPGA_ADC_CONFIG		(FPGA_ADC_BASE + 0x00)
+
+#define FPGA_FLASH_SECTOR_SIZE	(FPGA_FLASH_BASE + 0x04)
+#define FPGA_FLASH_COMMAND	(FPGA_FLASH_BASE + 0x08)
+#define FPGA_FLASH_STATUS	(FPGA_FLASH_BASE + 0x08)
+#define FPGA_FLASH_DATA		(FPGA_FLASH_BASE + 0x0c)
+
+#define FPGA_DAC1		(FPGA_DAC_BASE + 0x00)
+#define FPGA_DAC2		(FPGA_DAC_BASE + 0x04)
+
+#define FPGA_MUX		(FPGA_MUX_BASE + 0x00)
+
+#define FPGA_TRIGGER		(FPGA_STREAM_BASE + 0x00)
+#define FPGA_SAMPLES		(FPGA_STREAM_BASE + 0x04)
+#define FPGA_ACQ		(FPGA_STREAM_BASE + 0x08)
+#define FPGA_SYNC		(FPGA_STREAM_BASE + 0x0c)
+#define FPGA_PAUSE		(FPGA_STREAM_BASE + 0x10)
+#define FPGA_RESOLUTION		(FPGA_STREAM_BASE + 0x14)
+
+#define FPGA_AFE_COMMAND	(FPGA_AFE_BASE + 0x00)
+#define FPGA_AFE_ON		(FPGA_AFE_BASE + 0x04)
+#define FPGA_HV_ON		(FPGA_AFE_BASE + 0x08)
+#define FPGA_HV			(FPGA_AFE_BASE + 0x0c)
+#define FPGA_AFE_DAC		(FPGA_AFE_BASE + 0x10)
+//... FPGA_AFE_DAC7		(FPGA_AFE_BASE + 0x28)
+
+#endif
