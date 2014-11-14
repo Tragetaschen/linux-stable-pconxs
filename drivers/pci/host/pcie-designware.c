@@ -101,6 +101,8 @@
 #define PCIE_PHY_DEBUG_R1_LINK_UP	(0x1 << 4)
 #define PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING	(0x1 << 29)
 
+static int target_increase_payload(struct pcie_port *pp);
+
 static struct pci_ops dw_pcie_ops;
 
 int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
@@ -912,4 +914,18 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	dw_pcie_rd_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, &val);
 	val |= PORT_LOGIC_SPEED_CHANGE;
 	dw_pcie_wr_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, val);
+	target_increase_payload(pp);
+}
+
+static int target_increase_payload(struct pcie_port *pp)
+{
+	#define PCIE_CAPABILITIES_OFFSET 0x70
+	#define PCI_EXP_DEVCAP 4
+	#define PCI_EXP_DEVCAP_PAYLOAD 0x00000007
+	u32 reg;
+	dw_pcie_rd_own_conf(pp, PCIE_CAPABILITIES_OFFSET + PCI_EXP_DEVCAP, 2, &reg);
+	reg = reg & ~PCI_EXP_DEVCAP_PAYLOAD;
+	reg = reg | (0x4 & PCI_EXP_DEVCAP_PAYLOAD); // 2 KB
+	dw_pcie_wr_own_conf(pp, PCIE_CAPABILITIES_OFFSET + PCI_EXP_DEVCAP, 2, reg);
+	return 0;
 }
