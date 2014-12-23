@@ -418,7 +418,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbhost>;
 	dr_mode = "host";
-	status = "disabled";
+	status = "okay";
 	disable-over-current;
 	maximum-speed = "full-speed";
 };
