@@ -324,7 +324,7 @@ static int pca955x_probe(struct i2c_client *client,
 					pdata->leds[i].default_trigger;
 		} else {
 			snprintf(pca955x_led->name, sizeof(pca955x_led->name),
-				 "pca955x:%d", i);
+				 "pca955x%02x:%d", client->addr, i);
 		}
 
 		pca955x_led->led_cdev.name = pca955x_led->name;

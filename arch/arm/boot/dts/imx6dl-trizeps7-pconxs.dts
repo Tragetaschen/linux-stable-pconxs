@@ -286,6 +286,14 @@
 		status = "disabled";
 		reset-gpios = <&gpio6 9 1>;
 	};
+	ledsleft: pca9553@62 {
+		compatible = "nxp,pca9553";
+		reg = < 0x62 >;
+	};
+	ledsright: pca9553@63 {
+		compatible = "nxp,pca9553";
+		reg = < 0x63 >;
+	};
 	pmic: pfuze100@08 {
 		compatible = "fsl,pfuze100";
 		reg = < 0x08 >;
