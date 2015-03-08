@@ -316,8 +316,10 @@ static int ssd1306_bl_update_status(struct backlight_device *bl)
 	int ret;
 	struct ssd1307fb_par *par = bl_get_data(bl);
 
+	/*
 	if (bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		bl->props.brightness = 0;
+	*/
 
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
 	ret = ret & ssd1307fb_write_cmd(par->client, bl->props.brightness);
