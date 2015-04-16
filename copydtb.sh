@@ -1,4 +1,4 @@
-mount /dev/sdd1
-cp arch/arm/boot/dts/imx6dl-trizeps7-pconxs.dtb /mnt/sdd1/
-umount /dev/sdd1
+mount /dev/sdc1
+cp arch/arm/boot/dts/imx6dl-trizeps7-pconxs.dtb /mnt/sdc1/
+umount /dev/sdc1
 

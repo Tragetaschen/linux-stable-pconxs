@@ -1,4 +1,4 @@
-mount /dev/sdd1
-cp arch/arm/boot/zImage /mnt/sdd1/
-umount /dev/sdd1
+mount /dev/sdc1
+cp arch/arm/boot/zImage /mnt/sdc1/
+umount /dev/sdc1
 
