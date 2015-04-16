@@ -477,8 +477,7 @@
 		fsl,data-width = <18>;
 		status = "okay";
 		display-timings {
-			native-mode = <&timing0>;
-			timing0: ipan5pxn1 {
+			ipan5pxn1 {
 				clock-frequency = <30000000>;
 				hactive = <800>;
 				vactive = <480>;
