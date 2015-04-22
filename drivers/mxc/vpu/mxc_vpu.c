@@ -61,7 +61,6 @@
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
-#include <linux/busfreq-imx6.h>
 #include <linux/clk.h>
 #include <linux/genalloc.h>
 #include <linux/mxc_vpu.h>
@@ -1242,25 +1241,6 @@ recover_clk:
 	return 0;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
-static int vpu_runtime_suspend(struct device *dev)
-{
-	release_bus_freq(BUS_FREQ_HIGH);
-	return 0;
-}
-
-static int vpu_runtime_resume(struct device *dev)
-{
-	request_bus_freq(BUS_FREQ_HIGH);
-	return 0;
-}
-
-static const struct dev_pm_ops vpu_pm_ops = {
-	SET_RUNTIME_PM_OPS(vpu_runtime_suspend, vpu_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(vpu_suspend, vpu_resume)
-};
-#endif
-
 #else
 #define	vpu_suspend	NULL
 #define	vpu_resume	NULL
@@ -1282,9 +1262,6 @@ static struct platform_driver mxcvpu_driver = {
 		   .name = "mxc_vpu",
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 		   .of_match_table = vpu_of_match,
-#ifdef CONFIG_PM
-		   .pm = &vpu_pm_ops,
-#endif
 #endif
 		   },
 	.probe = vpu_dev_probe,

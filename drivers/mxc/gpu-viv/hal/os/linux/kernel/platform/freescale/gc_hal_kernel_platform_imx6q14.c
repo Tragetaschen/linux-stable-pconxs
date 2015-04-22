@@ -36,7 +36,6 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 #include <mach/busfreq.h>
 #else
-#include <linux/busfreq-imx6.h>
 #include <linux/reset.h>
 #endif
 #endif
@@ -49,17 +48,6 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/regulator/consumer.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-#include <linux/device_cooling.h>
-#define REG_THERMAL_NOTIFIER(a) register_devfreq_cooling_notifier(a);
-#define UNREG_THERMAL_NOTIFIER(a) unregister_devfreq_cooling_notifier(a);
-#else
-extern int register_thermal_notifier(struct notifier_block *nb);
-extern int unregister_thermal_notifier(struct notifier_block *nb);
-#define REG_THERMAL_NOTIFIER(a) register_thermal_notifier(a);
-#define UNREG_THERMAL_NOTIFIER(a) unregister_thermal_notifier(a);
-#endif
 
 static int initgpu3DMinClock = 1;
 module_param(initgpu3DMinClock, int, 0644);
@@ -206,91 +194,6 @@ _ShrinkMemory(
     return gcvSTATUS_OK;
 }
 #endif
-
-#if gcdENABLE_FSCALE_VAL_ADJUST
-static int thermal_hot_pm_notify(struct notifier_block *nb, unsigned long event,
-       void *dummy)
-{
-    static gctUINT orgFscale, minFscale, maxFscale;
-    static gctBOOL bAlreadyTooHot = gcvFALSE;
-    gckHARDWARE hardware;
-    gckGALDEVICE galDevice;
-
-    galDevice = platform_get_drvdata(pdevice);
-    if (!galDevice)
-    {
-        /* GPU is not ready, so it is meaningless to change GPU freq. */
-        return NOTIFY_OK;
-    }
-
-    if (!galDevice->kernels[gcvCORE_MAJOR])
-    {
-        return NOTIFY_OK;
-    }
-
-    hardware = galDevice->kernels[gcvCORE_MAJOR]->hardware;
-
-    if (!hardware)
-    {
-        return NOTIFY_OK;
-    }
-
-    if (event && !bAlreadyTooHot) {
-        gckHARDWARE_GetFscaleValue(hardware,&orgFscale,&minFscale, &maxFscale);
-        gckHARDWARE_SetFscaleValue(hardware, minFscale);
-        bAlreadyTooHot = gcvTRUE;
-        gckOS_Print("System is too hot. GPU3D will work at %d/64 clock.\n", minFscale);
-    } else if (!event && bAlreadyTooHot) {
-        gckHARDWARE_SetFscaleValue(hardware, orgFscale);
-        gckOS_Print("Hot alarm is canceled. GPU3D clock will return to %d/64\n", orgFscale);
-        bAlreadyTooHot = gcvFALSE;
-    }
-    return NOTIFY_OK;
-}
-
-static struct notifier_block thermal_hot_pm_notifier = {
-    .notifier_call = thermal_hot_pm_notify,
-    };
-
-static ssize_t show_gpu3DMinClock(struct device_driver *dev, char *buf)
-{
-    gctUINT currentf,minf,maxf;
-    gckGALDEVICE galDevice;
-
-    galDevice = platform_get_drvdata(pdevice);
-    if(galDevice->kernels[gcvCORE_MAJOR])
-    {
-         gckHARDWARE_GetFscaleValue(galDevice->kernels[gcvCORE_MAJOR]->hardware,
-            &currentf, &minf, &maxf);
-    }
-    snprintf(buf, PAGE_SIZE, "%d\n", minf);
-    return strlen(buf);
-}
-
-static ssize_t update_gpu3DMinClock(struct device_driver *dev, const char *buf, size_t count)
-{
-
-    gctINT fields;
-    gctUINT MinFscaleValue;
-    gckGALDEVICE galDevice;
-
-    galDevice = platform_get_drvdata(pdevice);
-    if(galDevice->kernels[gcvCORE_MAJOR])
-    {
-         fields = sscanf(buf, "%d", &MinFscaleValue);
-         if (fields < 1)
-             return -EINVAL;
-
-         gckHARDWARE_SetMinFscaleValue(galDevice->kernels[gcvCORE_MAJOR]->hardware,MinFscaleValue);
-    }
-
-    return count;
-}
-
-static DRIVER_ATTR(gpu3DMinClock, S_IRUGO | S_IWUSR, show_gpu3DMinClock, update_gpu3DMinClock);
-#endif
-
-
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
@@ -528,17 +431,6 @@ _GetPower(
     }
 
 
-#if gcdENABLE_FSCALE_VAL_ADJUST
-    pdevice = Platform->device;
-    REG_THERMAL_NOTIFIER(&thermal_hot_pm_notifier);
-    {
-        int ret = 0;
-        ret = driver_create_file(pdevice->dev.driver, &driver_attr_gpu3DMinClock);
-        if(ret)
-            dev_err(&pdevice->dev, "create gpu3DMinClock attr failed (%d)\n", ret);
-    }
-#endif
-
     return gcvSTATUS_OK;
 }
 
@@ -587,12 +479,6 @@ _PutPower(
        regulator_put(priv->gpu_regulator);
        priv->gpu_regulator = NULL;
     }
-#endif
-
-#if gcdENABLE_FSCALE_VAL_ADJUST
-    UNREG_THERMAL_NOTIFIER(&thermal_hot_pm_notifier);
-
-    driver_remove_file(pdevice->dev.driver, &driver_attr_gpu3DMinClock);
 #endif
 
     return gcvSTATUS_OK;
@@ -764,24 +650,6 @@ _SetClock(
     return gcvSTATUS_OK;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-#ifdef CONFIG_PM
-static int gpu_runtime_suspend(struct device *dev)
-{
-    release_bus_freq(BUS_FREQ_HIGH);
-    return 0;
-}
-
-static int gpu_runtime_resume(struct device *dev)
-{
-    request_bus_freq(BUS_FREQ_HIGH);
-    return 0;
-}
-
-static struct dev_pm_ops gpu_pm_ops;
-#endif
-#endif
-
 gceSTATUS
 _AdjustDriver(
     IN gckPLATFORM Platform
@@ -796,20 +664,6 @@ _AdjustDriver(
 #endif
 
     /* Override PM callbacks to add runtime PM callbacks. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-    /* Fill local structure with original value. */
-    memcpy(&gpu_pm_ops, driver->driver.pm, sizeof(struct dev_pm_ops));
-
-    /* Add runtime PM callback. */
-#ifdef CONFIG_PM_RUNTIME
-    gpu_pm_ops.runtime_suspend = gpu_runtime_suspend;
-    gpu_pm_ops.runtime_resume = gpu_runtime_resume;
-    gpu_pm_ops.runtime_idle = NULL;
-#endif
-
-    /* Replace callbacks. */
-    driver->driver.pm = &gpu_pm_ops;
-#endif
     return gcvSTATUS_OK;
 }
 
