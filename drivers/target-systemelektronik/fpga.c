@@ -342,18 +342,24 @@ static ssize_t fpga_cdev_write(struct file *filp, const char __user *buf,
 			       size_t size, loff_t *offset)
 {
 	/*
-
 		buf			length
+		adc \x{3,10}		7-15
 		on			3
 		off			4
 		samples \d{1,4}		9-13
 		trigger \d{1,4}		9-13
 		pause \d{1,4}		12
+		dac0 \x{3,10}		8-16
+		dac1 \x{3,10}		8-16
+		mux \x{3,10}		7-15
+		hv on			6
+		hv off			7
+		hv \d{1,8}		5-12
 	*/
-#define MAXIMAL_INPUT_LENGTH 13
+#define MAXIMAL_INPUT_LENGTH 16
 
 	char *copy;
-	u32 uservalue;
+	u32 uservalue, i;
 	int ret;
 
 	if (size > MAXIMAL_INPUT_LENGTH)
@@ -363,7 +369,11 @@ static ssize_t fpga_cdev_write(struct file *filp, const char __user *buf,
 		return -ENOMEM;
 	strncpy_from_user(copy, buf, size);
 	ret = size;
-	if (strcmp(copy, "on") == 0)
+	if (sscanf(copy, "adc %x", &uservalue) == 1)
+	{
+		bar_write(uservalue, TARGET_FPGA_ADC_CONFIG);
+	}
+	else if (strcmp(copy, "on") == 0)
 	{
 		bar_write(1, TARGET_FPGA_ADC_ONOFF);
 	}
@@ -382,6 +392,29 @@ static ssize_t fpga_cdev_write(struct file *filp, const char __user *buf,
 	else if (sscanf(copy, "pause %i", &uservalue) == 1)
 	{
 		bar_write(uservalue, TARGET_FPGA_PAUSE_COUNTER);
+	}
+	else if (sscanf(copy, "afe %i", &uservalue) == 1)
+	{
+		bar_write(1, TARGET_FPGA_AFE_MODE);
+		bar_write(uservalue & 0x00000001, TARGET_FPGA_AFE_STATUS);
+	}
+	else if (sscanf(copy, "hv %i", &uservalue) == 1)
+	{
+		bar_write(1, TARGET_FPGA_AFE_MODE);
+		if (uservalue == 0)
+			bar_write(0, TARGET_FPGA_AFE_HV);
+		else
+			bar_write(1, TARGET_FPGA_AFE_HV);
+		bar_write(uservalue, TARGET_FPGA_AFE_HV_VALUE);
+	}
+	else if (sscanf(copy, "dac %x %x", &i, &uservalue) == 2)
+	{
+		if (i == 0 || i > 7)
+			ret = -EINVAL;
+		else {
+			bar_write(1, TARGET_FPGA_AFE_MODE);
+			bar_write(uservalue & 0x0000ffff, TARGET_FPGA_AFE_DAC1 + 4 * (i - 1));
+		}
 	}
 	else {
 		ret = -EINVAL;
