@@ -226,6 +226,141 @@ static void fpga_teardown_irq(struct pci_dev *dev)
 	pci_disable_msi(dev);
 }
 
+static void bar_write(u32 value, int offset)
+{
+	iowrite32(value, fpga.bar1 + offset);
+}
+
+static u32 bar_read(int offset)
+{
+	return ioread32(fpga.bar1 + offset);
+}
+
+static ssize_t fpga_hv_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	u32 value;
+
+	bar_write(0, TARGET_FPGA_AFE_MODE);
+	bar_write(0, TARGET_FPGA_AFE_HV);
+	value = bar_read(TARGET_FPGA_AFE_HV);
+	if (value != 0) // There is an actual HV set
+	{
+		bar_write(0, TARGET_FPGA_AFE_HV_VALUE);
+		value = bar_read(TARGET_FPGA_AFE_HV_VALUE);
+	}
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", value);
+}
+
+static ssize_t fpga_hv_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 value;
+
+	if (kstrtou32(buf, 10, &value))
+		return -EINVAL;
+
+	bar_write(1, TARGET_FPGA_AFE_MODE);
+	bar_write(!!value, TARGET_FPGA_AFE_HV);
+	bar_write(value, TARGET_FPGA_AFE_HV_VALUE);
+
+	return count;
+}
+
+#define DAC_ATTR(i) \
+	static ssize_t fpga_dac##i##_show(struct device *dev, struct device_attribute *attr, char *buf) \
+	{ \
+		u32 value; \
+		bar_write(0, TARGET_FPGA_AFE_MODE); \
+		bar_write(0, TARGET_FPGA_AFE_DAC1 + 4 * (i - 1)); \
+		value = bar_read(TARGET_FPGA_AFE_DAC1 + 4 * (i - 1)); \
+		return scnprintf(buf, PAGE_SIZE, "%u\n", value); \
+	} \
+	static ssize_t fpga_dac##i##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
+	{ \
+		u32 value; \
+		if (kstrtou32(buf, 0, &value)) \
+			return -EINVAL; \
+		bar_write(1, TARGET_FPGA_AFE_MODE); \
+		bar_write(value & 0x0000ffff, TARGET_FPGA_AFE_DAC1 + 4 * (i - 1));\
+		return count; \
+	} \
+DEVICE_ATTR(dac##i, S_IWUSR | S_IRUGO, fpga_dac##i##_show, fpga_dac##i##_store)
+
+#define VALUE_ATTR(name, offset) \
+	static ssize_t fpga_##name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
+	{ \
+		int value; \
+		value = bar_read(offset); \
+		return scnprintf(buf, PAGE_SIZE, "%i\n", value); \
+	} \
+	static ssize_t fpga_##name##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
+	{ \
+		int value; \
+		if (kstrtoint(buf, 0, &value)) \
+			return -EINVAL; \
+		bar_write(value, offset);\
+		return count; \
+	} \
+DEVICE_ATTR(name, S_IWUSR | S_IRUGO, fpga_##name##_show, fpga_##name##_store)
+
+static ssize_t fpga_adc_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	u32 value;
+
+	value = bar_read(TARGET_FPGA_ADC_CONFIG);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", value);
+}
+
+static ssize_t fpga_adc_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 value;
+
+	if (kstrtou32(buf, 16, &value))
+		return -EINVAL;
+
+	bar_write(value, TARGET_FPGA_ADC_CONFIG);
+
+	return count;
+}
+
+DEVICE_ATTR(hv, S_IWUSR | S_IRUGO, fpga_hv_show, fpga_hv_store);
+DAC_ATTR(1);
+DAC_ATTR(2);
+DAC_ATTR(3);
+DAC_ATTR(4);
+DAC_ATTR(5);
+DAC_ATTR(6);
+DAC_ATTR(7);
+VALUE_ATTR(samples, TARGET_FPGA_SAMPLES);
+VALUE_ATTR(trigger, TARGET_FPGA_TRIGGER);
+VALUE_ATTR(pause, TARGET_FPGA_PAUSE_COUNTER);
+VALUE_ATTR(acq, TARGET_FPGA_ADC_ONOFF);
+DEVICE_ATTR(adc, S_IWUSR | S_IRUGO, fpga_adc_show, fpga_adc_store);
+
+static void fpga_create_attributes(struct device *dev)
+{
+	device_create_file(dev, &dev_attr_hv);
+	device_create_file(dev, &dev_attr_dac1);
+	device_create_file(dev, &dev_attr_dac2);
+	device_create_file(dev, &dev_attr_dac3);
+	device_create_file(dev, &dev_attr_dac4);
+	device_create_file(dev, &dev_attr_dac5);
+	device_create_file(dev, &dev_attr_dac6);
+	device_create_file(dev, &dev_attr_dac7);
+	device_create_file(dev, &dev_attr_samples);
+	device_create_file(dev, &dev_attr_trigger);
+	device_create_file(dev, &dev_attr_pause);
+	device_create_file(dev, &dev_attr_acq);
+	device_create_file(dev, &dev_attr_adc);
+}
+
+static ssize_t fpga_cdev_write(struct file *filp, const char __user *buf,
+			       size_t size, loff_t *offset)
+{
+	return -EINVAL;
+}
+
 static int fpga_driver_probe(struct pci_dev *dev,
 			     const struct pci_device_id *id)
 {
@@ -255,6 +390,7 @@ static int fpga_driver_probe(struct pci_dev *dev,
 			dev_info(&dev->dev, "AER not supported\n");
 
 		pci_set_master(dev);
+
 		return ret;
 	} else
 		return -ENODEV;
@@ -333,97 +469,6 @@ static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 	return wait_result;
 }
 
-static void bar_write(u32 value, int offset)
-{
-	iowrite32(value, fpga.bar1 + offset);
-}
-
-static ssize_t fpga_cdev_write(struct file *filp, const char __user *buf,
-			       size_t size, loff_t *offset)
-{
-	/*
-		buf			length
-		adc \x{3,10}		7-15
-		on			3
-		off			4
-		samples \d{1,4}		9-13
-		trigger \d{1,4}		9-13
-		pause \d{1,4}		12
-		dac0 \x{3,10}		8-16
-		dac1 \x{3,10}		8-16
-		mux \x{3,10}		7-15
-		hv on			6
-		hv off			7
-		hv \d{1,8}		5-12
-	*/
-#define MAXIMAL_INPUT_LENGTH 16
-
-	char *copy;
-	u32 uservalue, i;
-	int ret;
-
-	if (size > MAXIMAL_INPUT_LENGTH)
-		return -EINVAL;
-	copy = kzalloc(size, GFP_KERNEL);
-	if (copy == NULL)
-		return -ENOMEM;
-	strncpy_from_user(copy, buf, size);
-	ret = size;
-	if (sscanf(copy, "adc %x", &uservalue) == 1)
-	{
-		bar_write(uservalue, TARGET_FPGA_ADC_CONFIG);
-	}
-	else if (strcmp(copy, "on") == 0)
-	{
-		bar_write(1, TARGET_FPGA_ADC_ONOFF);
-	}
-	else if (strcmp(copy, "off") == 0)
-	{
-		bar_write(0, TARGET_FPGA_ADC_ONOFF);
-	}
-	else if (sscanf(copy, "samples %i", &uservalue) == 1)
-	{
-		bar_write(uservalue, TARGET_FPGA_SAMPLES);
-	}
-	else if (sscanf(copy, "trigger %i", &uservalue) == 1)
-	{
-		bar_write(uservalue, TARGET_FPGA_TRIGGER);
-	}
-	else if (sscanf(copy, "pause %i", &uservalue) == 1)
-	{
-		bar_write(uservalue, TARGET_FPGA_PAUSE_COUNTER);
-	}
-	else if (sscanf(copy, "afe %i", &uservalue) == 1)
-	{
-		bar_write(1, TARGET_FPGA_AFE_MODE);
-		bar_write(uservalue & 0x00000001, TARGET_FPGA_AFE_STATUS);
-	}
-	else if (sscanf(copy, "hv %i", &uservalue) == 1)
-	{
-		bar_write(1, TARGET_FPGA_AFE_MODE);
-		if (uservalue == 0)
-			bar_write(0, TARGET_FPGA_AFE_HV);
-		else
-			bar_write(1, TARGET_FPGA_AFE_HV);
-		bar_write(uservalue, TARGET_FPGA_AFE_HV_VALUE);
-	}
-	else if (sscanf(copy, "dac %x %x", &i, &uservalue) == 2)
-	{
-		if (i == 0 || i > 7)
-			ret = -EINVAL;
-		else {
-			bar_write(1, TARGET_FPGA_AFE_MODE);
-			bar_write(uservalue & 0x0000ffff, TARGET_FPGA_AFE_DAC1 + 4 * (i - 1));
-		}
-	}
-	else {
-		ret = -EINVAL;
-	}
-
-	kfree(copy);
-	return ret;
-}
-
 static const struct file_operations fpga_cdev_ops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -475,6 +520,9 @@ static int __init fpga_driver_init(void)
 		printk(KERN_WARNING "Error %d while trying to create target-fpga", ret);
 		goto driver_exit;
 	}
+
+	fpga_create_attributes(device);
+
 	return 0;
 
 driver_exit:
