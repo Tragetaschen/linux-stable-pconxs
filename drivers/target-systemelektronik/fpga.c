@@ -303,6 +303,16 @@ DEVICE_ATTR(dac##i, S_IWUSR | S_IRUGO, fpga_dac##i##_show, fpga_dac##i##_store)
 	} \
 DEVICE_ATTR(name, S_IWUSR | S_IRUGO, fpga_##name##_show, fpga_##name##_store)
 
+static ssize_t fpga_sync_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 value;
+
+	value = bar_read(TARGET_FPGA_ADC_ONOFF);
+	value |= 0x2;
+	bar_write(value, TARGET_FPGA_ADC_ONOFF);
+	return count;
+}
+
 static ssize_t fpga_adc_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	u32 value;
@@ -336,6 +346,7 @@ VALUE_ATTR(samples, TARGET_FPGA_SAMPLES);
 VALUE_ATTR(trigger, TARGET_FPGA_TRIGGER);
 VALUE_ATTR(pause, TARGET_FPGA_PAUSE_COUNTER);
 VALUE_ATTR(acq, TARGET_FPGA_ADC_ONOFF);
+DEVICE_ATTR(sync, S_IWUSR | S_IRUGO, NULL, fpga_sync_store);
 DEVICE_ATTR(adc, S_IWUSR | S_IRUGO, fpga_adc_show, fpga_adc_store);
 
 static void fpga_create_attributes(struct device *dev)
@@ -352,6 +363,7 @@ static void fpga_create_attributes(struct device *dev)
 	device_create_file(dev, &dev_attr_trigger);
 	device_create_file(dev, &dev_attr_pause);
 	device_create_file(dev, &dev_attr_acq);
+	device_create_file(dev, &dev_attr_sync);
 	device_create_file(dev, &dev_attr_adc);
 }
 
