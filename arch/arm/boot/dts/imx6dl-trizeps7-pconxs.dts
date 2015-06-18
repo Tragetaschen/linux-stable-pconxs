@@ -21,17 +21,17 @@
 			pinctrl-0 = <&pinctrl_ipu1_1>;
 			status = "okay";
 			display-timings {
-				800x480p60 {
+				480x800p75 {
 					native-mode;
-					clock-frequency = <30000000>;
-					hactive = <800>;
-					vactive = <480>;
-					hback-porch = <40>;
-					hfront-porch = <40>;
-					vback-porch = <29>;
-					vfront-porch = <13>;
-					hsync-len = <48>;
-					vsync-len = <3>;
+					clock-frequency = <30720000>;
+					hactive = <480>;
+					vactive = <800>;
+					hback-porch = <10>;
+					hfront-porch = <8>;
+					vback-porch = <2>;
+					vfront-porch = <2>;
+					hsync-len = <10>;
+					vsync-len = <2>;
 					vsync-active = <0>;
 				};
 			};
