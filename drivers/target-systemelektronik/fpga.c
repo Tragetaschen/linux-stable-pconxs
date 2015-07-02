@@ -346,7 +346,7 @@ VALUE_ATTR(samples, TARGET_FPGA_SAMPLES);
 VALUE_ATTR(trigger, TARGET_FPGA_TRIGGER);
 VALUE_ATTR(pause, TARGET_FPGA_PAUSE_COUNTER);
 VALUE_ATTR(acq, TARGET_FPGA_ADC_ONOFF);
-DEVICE_ATTR(sync, S_IWUSR | S_IRUGO, NULL, fpga_sync_store);
+DEVICE_ATTR(sync, S_IWUSR, NULL, fpga_sync_store);
 DEVICE_ATTR(adc, S_IWUSR | S_IRUGO, fpga_adc_show, fpga_adc_store);
 
 static void fpga_create_attributes(struct device *dev)
