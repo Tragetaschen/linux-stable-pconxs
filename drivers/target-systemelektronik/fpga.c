@@ -334,6 +334,20 @@ static ssize_t fpga_adc_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t fpga_clock_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	u32 lower, upper;
+	u64 value;
+
+	lower = ioread32(fpga.bar1 + TARGET_FPGA_CLOCK);
+	upper = ioread32(fpga.bar1 + TARGET_FPGA_CLOCK + 4);
+
+	value = ((u64)upper) << 32 | lower;
+
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", value);
+}
+
+
 DEVICE_ATTR(hv, S_IWUSR | S_IRUGO, fpga_hv_show, fpga_hv_store);
 DAC_ATTR(1);
 DAC_ATTR(2);
@@ -348,6 +362,7 @@ VALUE_ATTR(pause, TARGET_FPGA_PAUSE_COUNTER);
 VALUE_ATTR(acq, TARGET_FPGA_ADC_ONOFF);
 DEVICE_ATTR(sync, S_IWUSR, NULL, fpga_sync_store);
 DEVICE_ATTR(adc, S_IWUSR | S_IRUGO, fpga_adc_show, fpga_adc_store);
+DEVICE_ATTR(clock, S_IRUGO, fpga_clock_show, NULL);
 
 static void fpga_create_attributes(struct device *dev)
 {
@@ -365,6 +380,7 @@ static void fpga_create_attributes(struct device *dev)
 	device_create_file(dev, &dev_attr_acq);
 	device_create_file(dev, &dev_attr_sync);
 	device_create_file(dev, &dev_attr_adc);
+	device_create_file(dev, &dev_attr_clock);
 }
 
 static ssize_t fpga_cdev_write(struct file *filp, const char __user *buf,
