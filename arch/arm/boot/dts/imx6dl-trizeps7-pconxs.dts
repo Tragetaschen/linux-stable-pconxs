@@ -45,6 +45,26 @@
 	};
 };
 
+&iomuxc {
+	pconxs {
+		pinctrl_enet_4_rmii: enetgrp-4-rmii {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO       0x1b0b0
+				MX6QDL_PAD_ENET_MDC__ENET_MDC         0x1b0b0
+				MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0   0x80000000
+				MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1   0x80000000
+				MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN    0x80000000
+				MX6QDL_PAD_ENET_RX_ER__ENET_RX_ER     0x80000000
+				MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN     0x80000000
+				MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0   0x80000000
+				MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1   0x80000000
+				MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL 0x1b0b0
+				MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
+			>;
+		};
+	};
+};
+
 &pwm2 {
 	status = "okay";
 };
@@ -82,10 +102,6 @@
 
 &usbotg {
 	status = "okay";
-};
-
-&ipu1_di0_disp0 {
-	remote-endpoint = <&display0_in>;
 };
 
 &pcie {

@@ -1,0 +1,163 @@
+/dts-v1/;
+#include "imx6dl-trizeps7.dtsi"
+
+/ {
+	model = "Keith und Koep i.MX6 DualLite Trizeps VII Board mounted in an target U100";
+
+	soc {
+		display0: display@di0 {
+			compatible = "fsl,imx-parallel-display";
+			interface-pix-fmt = "rgb24";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ipu1_1>;
+			status = "okay";
+			display-timings {
+				480x800p75 {
+					native-mode;
+					clock-frequency = <30720000>;
+					hactive = <480>;
+					vactive = <800>;
+					hback-porch = <10>;
+					hfront-porch = <8>;
+					vback-porch = <2>;
+					vfront-porch = <2>;
+					hsync-len = <10>;
+					vsync-len = <2>;
+					vsync-active = <0>;
+				};
+			};
+
+			port {
+				display0_in: endpoint {
+					remote-endpoint = <&ipu1_di0_disp0>;
+				};
+			};
+		};
+	};
+
+/*	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 3517 PWM_POLARITY_INVERTED>;
+		enable-gpios = <&gpio4 20 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		status = "okay";
+	};*/
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		left {
+			label = "Key L";
+			gpios = <&gpio5 29 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_L>;
+		};
+		middle {
+			label = "Key M";
+			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_M>;
+		};
+		right {
+			label = "Key R";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_R>;
+		};
+		power {
+			label = "Key P";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_P>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
+		red {
+			label = "Red LED";
+			gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+		blue {
+			label = "Blue LED";
+			gpios = <&gpio6 6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+		green {
+			label = "Green LED";
+			gpios = <&gpio2 16 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+	};
+/*	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_poweroff>;
+		gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+	};*/
+};
+
+&iomuxc {
+	f500 {
+		pinctrl_gpio_keys: gpio_keysgrp {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT11__GPIO5_IO29	0x80000000
+				MX6QDL_PAD_EIM_WAIT__GPIO5_IO00	0x80000000
+				MX6QDL_PAD_GPIO_8__GPIO1_IO08	0x80000000
+				MX6QDL_PAD_GPIO_7__GPIO1_IO07	0x80000000
+			>;
+		};
+		pinctrl_gpio_leds: gpio_ledsgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_A24__GPIO5_IO04 0x80000000
+				MX6QDL_PAD_EIM_A23__GPIO6_IO06 0x80000000
+				MX6QDL_PAD_EIM_A22__GPIO2_IO16 0x80000000
+			>;
+		};
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_9__PWM1_OUT	0x1b0b1
+			>;
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	temp: temp@4E {
+		compatible = "national,lm75";
+		reg = <0x4E>;
+		status = "okay";
+	};
+/*	accel: accel@1C {
+		compatible = "fsl,mma8452";
+		reg = <0x1C>;
+		status = "okay";
+	}; */
+};
+&i2c2 {
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
+	};
+};
+
+&pcie {
+	status = "okay";
+/*	reset-gpio = <&gpio3 13 0>;
+	wake-up-gpio = <&gpio6 7 0>;*/
+};
+
+&ipu1_di0_disp0 {
+	remote-endpoint = <&display0_in>;
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
