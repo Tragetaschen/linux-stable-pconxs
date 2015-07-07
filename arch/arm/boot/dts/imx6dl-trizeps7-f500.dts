@@ -161,3 +161,7 @@
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
+
+&usbotg {
+	status = "okay";
+};
