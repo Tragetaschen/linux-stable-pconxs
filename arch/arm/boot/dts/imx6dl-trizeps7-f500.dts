@@ -153,8 +153,8 @@
 
 &pcie {
 	status = "okay";
-/*	reset-gpio = <&gpio3 13 0>;
-	wake-up-gpio = <&gpio6 7 0>;*/
+	reset-gpio = <&gpio3 13 0>;
+	wake-up-gpio = <&gpio6 7 0>;
 };
 
 &ipu1_di0_disp0 {
