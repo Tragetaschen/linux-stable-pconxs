@@ -183,8 +183,6 @@ static irqreturn_t handle_msi_interrupt(int irq, void *data)
 	position = fpga.counts_position;
 	fpga.counts_position = (position + 1) & 16383;
 	to_add = ((int*)fpga.counts.start)[position];
-	if (to_add != 0x4000)
-		printk(KERN_ERR "Read %u at %u\n", to_add, position);
 	if (atomic_add_return(to_add, &fpga.unread_data_items) == to_add)
 		complete(&events_available);
 	return IRQ_HANDLED;
