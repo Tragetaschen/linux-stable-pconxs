@@ -61,12 +61,14 @@ struct fpga_ringbuffer {
 };
 
 struct fpga_dev {
+	struct pci_dev *pci_dev;
+
 	struct fpga_ringbuffer data;
 	struct fpga_ringbuffer counts;
 	int interrupts_available;
 
 	atomic_t unread_data_items;
-	u32 last_offset;
+	u32 unsent_start;
 	u32 counts_position;
 
 	unsigned int major_device_number;
@@ -88,7 +90,7 @@ static DECLARE_COMPLETION(events_available);
 
 static struct fpga_dev fpga = {
 	.unread_data_items = ATOMIC_INIT(0),
-	.last_offset = 0,
+	.unsent_start = 0,
 	.counts_position = 0,
 	.counts = {
 		.size = 16 * PAGE_SIZE
@@ -395,6 +397,7 @@ static int fpga_driver_probe(struct pci_dev *dev,
 	int ret;
 
 	if ((dev->vendor == vid) && (dev->device == did)) {
+		fpga.pci_dev = dev;
 		ret = pcim_enable_device(dev);
 		if (ret) {
 			dev_err(&dev->dev, "pci_enable_device() failed\n");
@@ -475,6 +478,15 @@ static int fpga_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
+static void invalidate_cache(struct pci_dev *dev, void* start, size_t size)
+{
+	dma_addr_t dma_handle;
+
+	dma_handle = pci_map_single(dev, start, size, PCI_DMA_FROMDEVICE);
+	pci_dma_sync_single_for_cpu(dev, dma_handle, size, PCI_DMA_FROMDEVICE);
+	pci_unmap_single(dev, dma_handle, size, PCI_DMA_FROMDEVICE);
+}
+
 static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 			      size_t size, loff_t *offset)
 {
@@ -487,8 +499,11 @@ static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 
 	if (wait_result > 0) {
 		bytes_to_read = atomic_xchg(&fpga.unread_data_items, 0);
-		from_position = fpga.last_offset;
-		fpga.last_offset = (fpga.last_offset + bytes_to_read) % data_size;
+		from_position = fpga.unsent_start;
+
+		invalidate_cache(fpga.pci_dev, fpga.data.start + from_position, bytes_to_read);
+
+		fpga.unsent_start = (fpga.unsent_start + bytes_to_read) % data_size;
 		result = copy_to_user(buf, &from_position, sizeof(int));
 		result += copy_to_user(buf + sizeof(int), &bytes_to_read, sizeof(int));
 		return result;
