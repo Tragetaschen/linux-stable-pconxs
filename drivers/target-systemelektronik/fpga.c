@@ -488,7 +488,7 @@ static void invalidate_cache(struct pci_dev *dev, void* start, size_t size)
 static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 			      size_t size, loff_t *offset)
 {
-	int bytes_to_read, from_position, wait_result;
+	int bytes_to_read, from_position, wait_result, real_bytes_to_read, bytes_till_end;
 	size_t result;
 
 	wait_result = wait_for_completion_killable_timeout(
@@ -497,11 +497,19 @@ static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 
 	if (wait_result > 0) {
 		bytes_to_read = atomic_xchg(&fpga.unread_data_items, 0);
+		real_bytes_to_read = bytes_to_read & (data_size - 1);
 		from_position = fpga.unsent_start;
+		bytes_till_end = data_size - from_position;
 
-		invalidate_cache(fpga.pci_dev, fpga.data.start + from_position, bytes_to_read);
+		if (real_bytes_to_read >= bytes_till_end) {
+			invalidate_cache(fpga.pci_dev, fpga.data.start + from_position, bytes_till_end);
+			invalidate_cache(fpga.pci_dev, fpga.data.start, real_bytes_to_read - bytes_till_end);
+		}
+		else {
+			invalidate_cache(fpga.pci_dev, fpga.data.start + from_position, real_bytes_to_read);
+		}
 
-		fpga.unsent_start = (fpga.unsent_start + bytes_to_read) % data_size;
+		fpga.unsent_start = (fpga.unsent_start + bytes_to_read) & (data_size - 1);
 		result = copy_to_user(buf, &from_position, sizeof(int));
 		result += copy_to_user(buf + sizeof(int), &bytes_to_read, sizeof(int));
 		return result;
