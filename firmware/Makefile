@@ -140,6 +140,7 @@ fw-shipped-$(CONFIG_FB_MXC_EINK_PANEL) += imx/epdc_E60_V110.fw \
                 imx/epdc_E60_V220.fw \
                 imx/epdc_E97_V110.fw \
                 imx/epdc_E060SCM.fw
+fw-shipped-${CONFIG_MWIFIEX_SDIO} += mrvl/sd8787_uapsta.bin
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
