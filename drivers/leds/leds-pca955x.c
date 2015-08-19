@@ -255,6 +255,18 @@ static void pca955x_led_set(struct led_classdev *led_cdev, enum led_brightness v
 	schedule_work(&pca955x->work);
 }
 
+static const char* color(int number)
+{
+	switch (number)
+	{
+	case 0: return "red";
+	case 1: return "green";
+	case 2: return "blue";
+	case 3: return "nc";
+	}
+	return 0;
+}
+
 static int pca955x_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
@@ -324,7 +336,10 @@ static int pca955x_probe(struct i2c_client *client,
 					pdata->leds[i].default_trigger;
 		} else {
 			snprintf(pca955x_led->name, sizeof(pca955x_led->name),
-				 "pca955x:%d", i);
+				 "%s-%s", client->addr == 0x62 ? "left" : "right", color(i));
+			if (i == 2) {
+				pca955x_led->led_cdev.default_trigger = "heartbeat";
+			}
 		}
 
 		pca955x_led->led_cdev.name = pca955x_led->name;
