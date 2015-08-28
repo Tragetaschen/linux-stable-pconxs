@@ -318,89 +318,50 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 {
 	int ret;
 
-	/* Set initial contrast */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x7f);
-	if (ret < 0)
-		return ret;
+#define SSD1306_SEND(command) \
+	ret = ssd1307fb_write_cmd(par->client, command); \
+	if (ret < 0) return ret;
 
-	/* Set COM direction */
-	ret = ssd1307fb_write_cmd(par->client, 0xc8);
-	if (ret < 0)
-		return ret;
+#define SSD1306_SEND_VALUE(command, value) \
+	ret = ssd1307fb_write_cmd(par->client, command); \
+	ret = ret & ssd1307fb_write_cmd(par->client, value); \
+	if (ret < 0) return ret;
 
-	/* Set segment re-map */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
-	if (ret < 0)
-		return ret;
-
-	/* Set multiplex ratio value */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_MULTIPLEX_RATIO);
-	ret = ret & ssd1307fb_write_cmd(par->client, par->height - 1);
-	if (ret < 0)
-		return ret;
-
-	/* set display offset value */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_DISPLAY_OFFSET);
-	ret = ssd1307fb_write_cmd(par->client, 0x20);
-	if (ret < 0)
-		return ret;
-
-	/* Set clock frequency */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_CLOCK_FREQ);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0xf0);
-	if (ret < 0)
-		return ret;
-
-	/* Set precharge period in number of ticks from the internal clock */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PRECHARGE_PERIOD);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x22);
-	if (ret < 0)
-		return ret;
-
-	/* Set COM pins configuration */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COM_PINS_CONFIG);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x22);
-	if (ret < 0)
-		return ret;
-
-	/* Set VCOMH */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_VCOMH);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x49);
-	if (ret < 0)
-		return ret;
-
-	/* Turn on the DC-DC Charge Pump */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CHARGE_PUMP);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x14);
-	if (ret < 0)
-		return ret;
-
-	/* Switch to horizontal addressing mode */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_ADDRESS_MODE);
-	ret = ret & ssd1307fb_write_cmd(par->client,
-					SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
-	if (ret < 0)
-		return ret;
+	SSD1306_SEND(0xAF); /* DISPLAY_OFF */
+	SSD1306_SEND_VALUE(SSD1307FB_SET_CLOCK_FREQ, 0x80);
+	SSD1306_SEND_VALUE(SSD1307FB_SET_MULTIPLEX_RATIO, 31);
+	SSD1306_SEND_VALUE(SSD1307FB_SET_DISPLAY_OFFSET, 0x00);
+	SSD1306_SEND(0x40); /* Display Start Line */
+	SSD1306_SEND_VALUE(SSD1307FB_CHARGE_PUMP, 0x14);
+	SSD1306_SEND(SSD1307FB_SEG_REMAP_ON);
+	SSD1306_SEND(0xC8); /* Set COM direction */
+	SSD1306_SEND_VALUE(SSD1307FB_SET_COM_PINS_CONFIG, 0x12);
+	SSD1306_SEND_VALUE(SSD1307FB_CONTRAST, 0xFF);
+	SSD1306_SEND_VALUE(SSD1307FB_SET_PRECHARGE_PERIOD, 0x22);
+	SSD1306_SEND_VALUE(SSD1307FB_SET_VCOMH, 0x30);
+	SSD1306_SEND_VALUE(SSD1307FB_SET_ADDRESS_MODE, SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
 
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x0);
-	ret = ret & ssd1307fb_write_cmd(par->client, par->width - 1);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, 0);
+	if (ret < 0)
+		return ret;
+	ret = ssd1307fb_write_cmd(par->client, 127);
 	if (ret < 0)
 		return ret;
 
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
-	ret = ret & ssd1307fb_write_cmd(par->client, 0x0);
-	ret = ret & ssd1307fb_write_cmd(par->client,
-					par->page_offset + (par->height / 8) - 1);
+	ret = ret & ssd1307fb_write_cmd(par->client, 0);
+	ret = ret & ssd1307fb_write_cmd(par->client, 3);
 	if (ret < 0)
 		return ret;
 
-	/* Turn on the display */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
-	if (ret < 0)
-		return ret;
+	SSD1306_SEND(0xA4); /* Entire display on */
+	SSD1306_SEND(0xA6); /* Normal display */
 
+	SSD1306_SEND(SSD1307FB_DISPLAY_ON);
 	return 0;
 }
 
