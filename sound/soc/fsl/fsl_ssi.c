@@ -169,6 +169,21 @@ static bool fsl_ssi_volatile_reg(struct device *dev, unsigned int reg)
 
 }
 
+static bool fsl_ssi_precious_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CCSR_SSI_SRX0:
+	case CCSR_SSI_SRX1:
+	case CCSR_SSI_SISR:
+	case CCSR_SSI_SACADD:
+	case CCSR_SSI_SACDAT:
+	case CCSR_SSI_SATAG:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool fsl_ssi_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -206,6 +221,7 @@ static const struct regmap_config fsl_ssi_regconfig = {
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
 	.readable_reg = fsl_ssi_readable_reg,
 	.volatile_reg = fsl_ssi_volatile_reg,
+	.precious_reg = fsl_ssi_precious_reg,
 	.writeable_reg = fsl_ssi_writeable_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
