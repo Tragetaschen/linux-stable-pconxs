@@ -1,0 +1,85 @@
+/dts-v1/;
+#include "imx6dl-trizeps7.dtsi"
+
+/ {
+	model = "Keith und Koep i.MX6 DualLite Trizeps VII Board mounted in an target U100";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		left {
+			label = "Key L";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_L>;
+		};
+		right {
+			label = "Key R";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_R>;
+		};
+	};
+};
+
+&iomuxc {
+	u100 {
+		pinctrl_solomon: solomon {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL4__GPIO4_IO14 0x80000000
+			>;
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	temp: temp@4E {
+		compatible = "national,lm75";
+		reg = <0x4E>;
+		status = "okay";
+	};
+	accel: accel@1C {
+		compatible = "fsl,mma8452";
+		reg = <0x1C>;
+		status = "okay";
+	};
+};
+&i2c2 {
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
+	};
+	ssd1306: ssd1306@3C {
+		compatible = "solomon,ssd1306fb-i2c";
+		reg = <0x3C>;
+		status = "okay";
+		solomon,height = <32>;
+		solomon,width = <128>;
+		reset-gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_solomon>;
+	};
+	ledsleft: pca9553@62 {
+		compatible = "nxp,pca9553";
+		reg = < 0x62 >;
+	};
+	ledsright: pca9553@63 {
+		compatible = "nxp,pca9553";
+		reg = < 0x63 >;
+	};
+};
+
+&fec {
+	pinctrl-0 = <&pinctrl_enet_4_rgmii>;
+	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+	reset-gpio = <&gpio3 13 0>;
+	wake-up-gpio = <&gpio6 7 0>;
+};
