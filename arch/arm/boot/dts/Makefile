@@ -440,6 +440,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-savageboard.dtb \
 	imx6dl-ts4900.dtb \
 	imx6dl-ts7970.dtb \
+	imx6dl-u100.dtb \
 	imx6dl-tx6dl-comtft.dtb \
 	imx6dl-tx6s-8034.dtb \
 	imx6dl-tx6s-8034-mb7.dtb \

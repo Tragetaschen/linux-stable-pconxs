@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2016 Kai Ruhnau <kai.ruhnau@target-sg.com>
+
+/dts-v1/;
+
+#include "imx6dl-trizeps-vii.dtsi"
+#include <dt-bindings/leds/leds-pca955x.h>
+
+/ {
+	model = "TargetSG U100";
+	compatible = "targetsg,u100", "keithkoep,imx6dl-trizeps-vii",
+		     "fsl,imx6dl";
+
+	chosen {
+		stdout-path = &uart2;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_keys>;
+
+		left {
+			label = "Key L";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_L>;
+		};
+		right {
+			label = "Key R";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_R>;
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	temp: temp@4e {
+		compatible = "national,lm75";
+		reg = <0x4E>;
+		status = "okay";
+	};
+	accel: accel@1c {
+		compatible = "fsl,mma8452";
+		reg = <0x1C>;
+		status = "okay";
+	};
+};
+&i2c2 {
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
+	};
+	ssd1306: ssd1306@3c {
+		compatible = "solomon,ssd1306fb-i2c";
+		reg = <0x3C>;
+		status = "okay";
+		solomon,height = <32>;
+		solomon,width = <128>;
+		solomon,com-invdir = <1>;
+		solomon,page-offset = <0>;
+		reset-gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_solomon>;
+	};
+	ledsleft: pca9553@62 {
+		compatible = "nxp,pca9553";
+		reg = < 0x62 >;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			label = "left-red";
+			reg = <0>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		led@1 {
+			label = "left-green";
+			reg = <1>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		led@2 {
+			label = "left-blue";
+			reg = <2>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		led@3 {
+			reg = <3>;
+			type = <PCA955X_TYPE_NONE>;
+		};
+	};
+	ledsright: pca9553@63 {
+		compatible = "nxp,pca9553";
+		reg = < 0x63 >;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			label = "right-red";
+			reg = <0>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		led@1 {
+			label = "right-green";
+			reg = <1>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		led@2 {
+			label = "right-blue";
+			reg = <2>;
+			type = <PCA955X_TYPE_LED>;
+		};
+		led@3 {
+			reg = <3>;
+			type = <PCA955X_TYPE_NONE>;
+		};
+	};
+};
+
+&fec {
+	pinctrl-0 = <&pinctrl_enet_4_rgmii>;
+	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+	reset-gpio = <&gpio3 13 0>;
+	wake-up-gpio = <&gpio6 7 0>;
+};
+
+&iomuxc {
+	u100 {
+		pinctrl_keys: gpio_keysgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_7__GPIO1_IO07	0x80000000
+				MX6QDL_PAD_GPIO_8__GPIO1_IO08	0x80000000
+			>;
+		};
+		pinctrl_solomon: solomon {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL4__GPIO4_IO14 0x80000000
+			>;
+		};
+	};
+};
