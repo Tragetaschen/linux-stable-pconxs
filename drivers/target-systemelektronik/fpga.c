@@ -698,6 +698,25 @@ static void fpga_driver_remove(struct pci_dev *dev)
 	fpga_teardown_irq(fpga_dev);
 }
 
+#ifdef CONFIG_PM
+static int fpga_driver_suspend (struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int fpga_driver_resume (struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	return pci_enable_device(pdev);
+}
+
+#endif /* CONFIG_PM */
 
 static const struct pci_device_id fpga_driver_tbl[] = {
 	{ PCI_DEVICE(PCI_ANY_ID, PCI_ANY_ID) },
@@ -711,6 +730,10 @@ static struct pci_driver fpga_driver = {
 	.id_table = fpga_driver_tbl,
 	.probe		= fpga_driver_probe,
 	.remove		= fpga_driver_remove,
+#ifdef CONFIG_PM
+	.suspend	= fpga_driver_suspend,
+	.resume		= fpga_driver_resume,
+#endif /* CONFIG_PM */
 };
 
 static int __init fpga_driver_init(void)
