@@ -434,6 +434,34 @@ static void fpga_driver_remove(struct pci_dev *dev)
 	fpga_teardown_irq(dev);
 }
 
+#ifdef CONFIG_PM
+static int fpga_driver_suspend (struct pci_dev *pdev, pm_message_t state)
+{
+        struct net_device *dev = pci_get_drvdata (pdev);
+
+        pci_save_state(pdev);
+        pci_disable_device(pdev);
+        pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+        return 0;
+}
+
+static int fpga_driver_resume (struct pci_dev *pdev)
+{
+        struct net_device *dev = pci_get_drvdata (pdev);
+        int rc;
+
+        pci_set_power_state(pdev, PCI_D0);
+        pci_restore_state(pdev);
+
+        rc = pci_enable_device(pdev);
+        if (rc)
+                return rc;
+
+        return 0;
+}
+
+#endif /* CONFIG_PM */
 
 /* we check for the configured vid/did dynamically for now */
 static const struct pci_device_id fpga_driver_tbl[] = {
@@ -448,6 +476,10 @@ static struct pci_driver fpga_driver = {
 	.id_table = fpga_driver_tbl,
 	.probe		= fpga_driver_probe,
 	.remove		= fpga_driver_remove,
+#ifdef CONFIG_PM
+        .suspend        = fpga_driver_suspend,
+        .resume         = fpga_driver_resume,
+#endif /* CONFIG_PM */
 };
 
 static int fpga_cdev_open(struct inode *inode, struct file *filp)
