@@ -58,6 +58,8 @@
 		status = "okay";
 		solomon,height = <32>;
 		solomon,width = <128>;
+		solomon,com-invdir = <1>;
+		solomon,page-offset = <0>;
 		reset-gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_solomon>;

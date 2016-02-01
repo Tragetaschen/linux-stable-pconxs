@@ -286,6 +286,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 {
 	int ret;
 	u32 precharge, dclk, com_invdir, compins, chargepump;
+	struct ssd1307fb_array *array;
 
 	if (par->device_info->need_pwm) {
 		par->pwm = pwm_get(&par->client->dev, NULL);
@@ -429,6 +430,14 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 				  par->page_offset + (par->height / 8) - 1);
 	if (ret < 0)
 		return ret;
+
+// Target: Clear the framebuffer to avoid snow during boot
+	array = ssd1307fb_alloc_array(par->width * par->height / 8, SSD1307FB_DATA);
+	if (!array)
+		return -ENOMEM;
+	ssd1307fb_write_array(par->client, array, par->width * par->height / 8);
+	kfree(array);
+// End Target
 
 	/* Turn on the display */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
