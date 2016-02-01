@@ -285,7 +285,7 @@ static void ssd1307fb_deferred_io(struct fb_info *info,
 static int ssd1307fb_init(struct ssd1307fb_par *par)
 {
 	int ret;
-	u32 precharge, dclk, com_invdir, compins;
+	u32 precharge, dclk, com_invdir, compins, chargepump;
 
 	if (par->device_info->need_pwm) {
 		par->pwm = pwm_get(&par->client->dev, NULL);
@@ -388,8 +388,8 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	ret = ssd1307fb_write_cmd(par->client,
-		(par->device_info->need_chargepump & 0x1 << 2) & 0x14);
+	chargepump = 0x10 | (par->device_info->need_chargepump & 0x1) << 2;
+	ret = ssd1307fb_write_cmd(par->client, chargepump);
 	if (ret < 0)
 		return ret;
 
