@@ -191,7 +191,7 @@ static int fpga_setup_irq(struct fpga_dev *fpga_dev)
 static void fpga_teardown_irq(struct fpga_dev *fpga_dev)
 {
 	int irq = fpga_dev->pci_dev->irq;
-	devm_free_irq(&fpga_dev->pci_dev->dev, irq, fpga_dev->pci_dev);
+	devm_free_irq(&fpga_dev->pci_dev->dev, irq, fpga_dev);
 	pci_disable_msi(fpga_dev->pci_dev);
 }
 
