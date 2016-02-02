@@ -1,5 +1,6 @@
 menuconfig TARGET_SYSTEMELEKTRONIK
 	bool "Target Systemelektronik Drivers"
+	depends on PCI
 	default y
 
 if TARGET_SYSTEMELEKTRONIK
