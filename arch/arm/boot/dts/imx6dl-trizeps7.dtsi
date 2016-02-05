@@ -331,6 +331,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
+				regulator-always-on;
 			};
 			vgen5_reg: vgen5 {
 				regulator-name = "PFUZE100_VGEN5";
