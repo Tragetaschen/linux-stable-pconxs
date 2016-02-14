@@ -78,6 +78,26 @@
                 late_init = <0>;
                 status = "okay";
 	};
+
+	sound {
+		compatible = "fsl,imx6q-trizeps7-wm9712",
+			     "fsl,imx-audio-wm9712";
+		model = "wm9712-audio";
+		cpu-dai = <&ssi2>;
+		audio-routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR";
+		mux-int-port = <2>;
+		mux-ext-port = <3>;
+	};
+};
+
+&vgen5_reg {
+	regulator-always-on;
+};
+
+&audmux {
+	status = "okay";
 };
 
 &ldb {
@@ -135,6 +155,28 @@
 				MX6QDL_PAD_GPIO_9__PWM1_OUT	0x1b0b1
 			>;
 		};
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0
+				MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
+				MX6QDL_PAD_CSI0_DAT5__AUD3_TXD		0x110b0
+				MX6QDL_PAD_CSI0_DAT6__AUD3_TXFS		0x130b0
+				MX6QDL_PAD_NANDF_CS0__GPIO6_IO11	0x1b0b1
+				MX6QDL_PAD_NANDF_CS3__GPIO6_IO16	0x1b0b1
+			>;
+		};
+		ac97link_reset: audmuxgrp_reset {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT5__GPIO5_IO23	0x1f071
+				MX6QDL_PAD_CSI0_DAT6__GPIO5_IO24	0x1f071
+				MX6QDL_PAD_NANDF_CS3__GPIO6_IO16	0x1f071
+			>;
+		};
+		ac97link_warm_reset: audmuxgrp_warmreset {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT6__GPIO5_IO24	0x1f071
+			>;
+		};
 	};
 };
 
@@ -172,6 +214,18 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&ssi2 {
+	pinctrl-names = "default", "ac97-running", "ac97-reset", "ac97-warm-reset";
+	pinctrl-0 = <&pinctrl_audmux>;
+	pinctrl-1 = <&pinctrl_audmux>;
+	pinctrl-2 = <&ac97link_reset>;
+	pinctrl-3 = <&ac97link_warm_reset>;
+	/* sync, sdata, reset */
+	ac97-gpios = <&gpio5 24 0 &gpio5 23 0 &gpio6 16 0>;
+	fsl,mode = "ac97-slave";
 	status = "okay";
 };
 
