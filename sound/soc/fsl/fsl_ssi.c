@@ -302,6 +302,8 @@ struct fsl_ssi_private {
 	struct fsl_ssi_dbg dbg_stats;
 
 	const struct fsl_ssi_soc_data *soc;
+
+	bool rxtx_enabled;
 };
 
 /*
@@ -431,6 +433,8 @@ static void fsl_ssi_rxtx_config(struct fsl_ssi_private *ssi_private,
 		regmap_update_bits(regs, CCSR_SSI_SIER,
 				vals->rx.sier | vals->tx.sier, 0);
 	}
+
+	ssi_private->rxtx_enabled = enable;
 }
 
 /*
@@ -496,8 +500,8 @@ static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 	 * even if we do not use them later (capture and playback configuration)
 	 */
 	if (ssi_private->soc->offline_config) {
-		if ((enable && !nr_active_streams) ||
-				(!enable && !keep_active))
+		if ((enable && (!ssi_private->rxtx_enabled || !nr_active_streams)) ||
+		    (!enable && !keep_active))
 			fsl_ssi_rxtx_config(ssi_private, enable);
 
 		goto config_done;
