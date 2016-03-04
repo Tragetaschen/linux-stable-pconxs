@@ -429,6 +429,7 @@ VALUE_RW(acq, FPGA_ACQ, "%d");
 VALUE_WO(sync, FPGA_SYNC);
 VALUE_RW(pause, FPGA_PAUSE, "%d");
 VALUE64_RO(resolution, FPGA_RESOLUTION);
+VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
 DEVICE_ATTR_RW(afe_on);
 DEVICE_ATTR_RW(hv);
 DEVICE_ATTR(dac1, S_IWUSR | S_IRUGO, dac_show, dac_store);
@@ -458,6 +459,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_sync.attr,
 	&dev_attr_pause.attr,
 	&dev_attr_resolution.attr,
+	&dev_attr_prepause.attr,
 	&dev_attr_afe_on.attr,
 	&dev_attr_hv.attr,
 	&dev_attr_dac1.attr,
