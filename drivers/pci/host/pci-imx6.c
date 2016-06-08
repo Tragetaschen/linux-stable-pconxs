@@ -27,6 +27,7 @@
 #include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/regulator/consumer.h>
 
 #include "pcie-designware.h"
 
@@ -55,6 +56,7 @@ struct imx6_pcie {
 	u32			tx_swing_full;
 	u32			tx_swing_low;
 	int			link_gen;
+	struct regulator	*phy_regulator;
 };
 
 /* PCIe Root Complex registers (memory-mapped) */
@@ -95,6 +97,8 @@ struct imx6_pcie {
 #define PHY_RX_OVRD_IN_LO 0x1005
 #define PHY_RX_OVRD_IN_LO_RX_DATA_EN (1 << 5)
 #define PHY_RX_OVRD_IN_LO_RX_PLL_EN (1 << 3)
+
+#define MX6SX_PCIE_LDO				1100000
 
 static int pcie_phy_poll_ack(void __iomem *dbi_base, int exp_val)
 {
@@ -407,11 +411,26 @@ err_pcie_phy:
 static void imx6_pcie_init_phy(struct pcie_port *pp)
 {
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
+	int ret;
 
-	if (imx6_pcie->variant == IMX6SX)
+	if (imx6_pcie->variant == IMX6SX) {
+		ret = regulator_set_voltage(imx6_pcie->phy_regulator,
+					    MX6SX_PCIE_LDO, MX6SX_PCIE_LDO);
+		if (ret) {
+			dev_err(pp->dev, "failed to set pcie phy voltage.\n");
+			return;
+		}
+
+		ret = regulator_enable(imx6_pcie->phy_regulator);
+		if (ret) {
+			dev_err(pp->dev, "failed to enable pcie regulator.\n");
+			return;
+		}
+
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				   IMX6SX_GPR12_PCIE_RX_EQ_MASK,
 				   IMX6SX_GPR12_PCIE_RX_EQ_2);
+	}
 
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 			IMX6Q_GPR12_PCIE_CTL_2, 0 << 10);
@@ -679,6 +698,14 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"pcie_incbound_axi clock missing or invalid\n");
 			return PTR_ERR(imx6_pcie->pcie_inbound_axi);
+		}
+
+		imx6_pcie->phy_regulator = devm_regulator_get(pp->dev,
+							      "pcie-phy");
+		if (IS_ERR(imx6_pcie->phy_regulator)) {
+			dev_err(&pdev->dev,
+				"failed to get pcie-phy regulator\n");
+			return PTR_ERR(imx6_pcie->phy_regulator);
 		}
 	}
 

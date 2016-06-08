@@ -33,6 +33,8 @@ Optional properties:
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:
 	- "pcie_inbound_axi"
+- pcie-phy-supply: Must point to the internal PCIE power domain regulator:
+		   <&reg_pcie>;
 
 Example:
 
