@@ -66,7 +66,7 @@
 		compatible = "gpio-poweroff";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_poweroff>;
-		gpios = <&gpio3 28 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 29 GPIO_ACTIVE_LOW>;
 	};
 
 	mxcfb0: fb {
@@ -189,19 +189,19 @@
 		status = "okay";
 	};
 	/* Humidity sensor @76 */
-};
-&i2c2 {
-	rtc: rtc@51 {
-		compatible = "nxp,pcf8563";
-		reg = <0x51>;
-		status = "okay";
-	};
 	battery: target-pm1@44 {
 		compatible = "sbs,sbs-battery";
 		reg = <0x44>;
 		status = "okay";
 		sbs,i2c-retry-count = <2>;
 		sbs,poll-retry-count = <10>;
+	};
+};
+&i2c2 {
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		status = "okay";
 	};
 };
 
