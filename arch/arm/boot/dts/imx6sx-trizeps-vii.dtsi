@@ -143,15 +143,15 @@
 	/* Flash is optional */
 };
 
-&reg_1p1 {
+&reg_vdd1p1 {
 	vin-supply = <&reg_DCDC3>;
 };
 
-&reg_2p5 {
+&reg_vdd2p5 {
 	vin-supply = <&reg_DCDC3>;
 };
 
-&reg_3p0 {
+&reg_vdd3p0 {
 	vin-supply = <&reg_DCDC3>;
 };
 
