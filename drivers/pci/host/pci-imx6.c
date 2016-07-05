@@ -48,6 +48,7 @@ struct imx6_pcie {
 	struct clk		*pcie;
 	struct pcie_port	pp;
 	struct regmap		*iomuxc_gpr;
+	struct regmap		*gpc_ips_reg;
 	enum imx6_pcie_variants variant;
 	void __iomem		*mem_base;
 	u32			tx_deemph_gen1;
@@ -99,6 +100,9 @@ struct imx6_pcie {
 #define PHY_RX_OVRD_IN_LO_RX_PLL_EN (1 << 3)
 
 #define MX6SX_PCIE_LDO				1100000
+
+#define GPC_CNTR			0
+#define GPC_CNTR_PCIE_PHY_PUP_REQ	BIT(7)
 
 static int pcie_phy_poll_ack(void __iomem *dbi_base, int exp_val)
 {
@@ -260,6 +264,12 @@ static int imx6_pcie_assert_core_reset(struct pcie_port *pp)
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
 				   IMX6SX_GPR5_PCIE_BTNRST_RESET,
 				   IMX6SX_GPR5_PCIE_BTNRST_RESET);
+
+		/* Power up the PHY */
+		regmap_update_bits(imx6_pcie->gpc_ips_reg, GPC_CNTR,
+				GPC_CNTR_PCIE_PHY_PUP_REQ,
+				GPC_CNTR_PCIE_PHY_PUP_REQ);
+
 		break;
 	case IMX6QP:
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
@@ -707,6 +717,14 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 				"failed to get pcie-phy regulator\n");
 			return PTR_ERR(imx6_pcie->phy_regulator);
 		}
+
+		imx6_pcie->gpc_ips_reg =
+			 syscon_regmap_lookup_by_compatible("fsl,imx6sx-gpc");
+		if (IS_ERR(imx6_pcie->gpc_ips_reg)) {
+			dev_err(&pdev->dev, "unable to find gpc registers\n");
+			return PTR_ERR(imx6_pcie->gpc_ips_reg);
+		}
+
 	}
 
 	/* Grab GPR config register range */
