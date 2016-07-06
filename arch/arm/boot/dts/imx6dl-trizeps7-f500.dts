@@ -182,13 +182,6 @@
 
 &i2c1 {
 	status = "okay";
-	/* BNO 055 accelerometer @28 */
-	temp: temp@4E {
-		compatible = "national,lm75";
-		reg = <0x4E>;
-		status = "okay";
-	};
-	/* Humidity sensor @76 */
 	battery: target-pm1@44 {
 		compatible = "sbs,sbs-battery";
 		reg = <0x44>;
@@ -198,11 +191,18 @@
 	};
 };
 &i2c2 {
+	/* BNO 055 accelerometer @28 */
 	rtc: rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 		status = "okay";
 	};
+	temp: temp@4E {
+		compatible = "national,lm75";
+		reg = <0x4E>;
+		status = "okay";
+	};
+	/* Humidity sensor @76 */
 };
 
 &pcie {
