@@ -1250,6 +1250,16 @@
 			};
 		};
 
+		gpu: gpu@01800000 {
+			compatible = "vivante,gc";
+			reg = <0x01800000 0x4000>;
+			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6SX_CLK_GPU>,
+				 <&clks IMX6SX_CLK_GPU>,
+				 <&clks IMX6SX_CLK_GPU>;
+			clock-names = "bus", "core", "shader";
+		};
+
 		pcie: pcie@0x08000000 {
 			compatible = "fsl,imx6sx-pcie", "snps,dw-pcie";
 			reg = <0x08ffc000 0x4000>; /* DBI */
@@ -1272,5 +1282,10 @@
 				      "lvds_gate", "display_axi";
 			status = "disabled";
 		};
+	};
+
+	gpu-subsystem {
+		compatible = "fsl,imx-gpu-subsystem";
+		cores = <&gpu>;
 	};
 };
