@@ -588,6 +588,8 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 			gpu->memory_base = PHYS_OFFSET;
 		else
 			gpu->memory_base = dma_mask - SZ_2G + 1;
+	} else {
+		gpu->memory_base = PHYS_OFFSET;
 	}
 
 	ret = etnaviv_hw_reset(gpu);
