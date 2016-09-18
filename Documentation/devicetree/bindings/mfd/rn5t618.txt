@@ -9,6 +9,9 @@ Required properties:
  - compatible: should be "ricoh,rn5t618"
  - reg: the I2C slave address of the device
 
+Optional properties:
+ - system-power-controller: whether the rtc is controlling the system power
+
 Sub-nodes:
  - regulators: the node is required if the regulator functionality is
    needed. The valid regulator names are: DCDC1, DCDC2, DCDC3, LDO1,
