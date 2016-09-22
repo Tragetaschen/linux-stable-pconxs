@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/delay.h>
 
 #include "pcie_registers.h"
 
@@ -242,84 +243,39 @@ static ssize_t version_show(struct device *dev, struct device_attribute *attr, c
 	return scnprintf(buf, PAGE_SIZE, "%s\n", values);
 }
 
-static ssize_t afe_on_show(struct device *dev, struct device_attribute *attr, char *buf)
+static void afe3_write(struct device *dev, u32 cmd, u32 index, u32 data)
 {
-	u32 value;
-
-	bar_write(dev, 0, FPGA_AFE_COMMAND);
-	bar_write(dev, 0, FPGA_AFE_ON);
-	value = bar_read(dev, FPGA_AFE_ON);
-	return scnprintf(buf, PAGE_SIZE, "%u\n", value);
+	bar_write(dev, cmd << 8 | index, FPGA_AFE3_COMMAND);
+	bar_write(dev, data, FPGA_AFE3_DATA);
+	// There's currently no way to know when it's done
+	msleep_interruptible(20);
 }
 
-static ssize_t afe_on_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static int afe3_read(struct device *dev, u32 cmd, u32 index, u32* data)
 {
-	u32 value;
-	if (kstrtou32(buf, 0, &value))
-		return -EINVAL;
+	u32 command, expected_value;
+	int attempts = 0;
+	const int max_attempts = 5;
 
-	bar_write(dev, 1, FPGA_AFE_COMMAND);
-	bar_write(dev, !!value, FPGA_AFE_ON);
-	return count;
-}
+	command = cmd << 8 | index;
+	expected_value = 0x55 << 16 | cmd << 8 | index;
 
-static ssize_t hv_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	u32 value;
+	bar_write(dev, command, FPGA_AFE3_COMMAND);
+	bar_write(dev, 0, FPGA_AFE3_DATA);
 
-	bar_write(dev, 0, FPGA_AFE_COMMAND);
-	bar_write(dev, 0, FPGA_HV_ON);
-	value = bar_read(dev, FPGA_HV_ON);
-	if (value != 0) // There is an actual HV set
+	do
 	{
-		bar_write(dev, 0, FPGA_HV);
-		value = bar_read(dev, FPGA_HV);
+		++attempts;
+		msleep_interruptible(20);
+		command = bar_read(dev, FPGA_AFE3_COMMAND);
 	}
+	while (command != expected_value && attempts < max_attempts);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", value);
-}
+	if (attempts >= max_attempts)
+		return -ETIMEDOUT;
 
-static ssize_t hv_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	u32 value;
-
-	if (kstrtou32(buf, 10, &value))
-		return -EINVAL;
-
-	bar_write(dev, 1, FPGA_AFE_COMMAND);
-	bar_write(dev, !!value, FPGA_HV_ON);
-	bar_write(dev, value, FPGA_HV);
-
-	return count;
-}
-
-static ssize_t dac_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	u32 value;
-	int i = (int)attr->attr.name[3] - '0';
-
-	if (!(1 <= i && i <= 7))
-		return -EINVAL;
-
-	bar_write(dev, 0, FPGA_AFE_COMMAND);
-	bar_write(dev, 0, FPGA_AFE_DAC + 4 * (i - 1));
-	value = bar_read(dev, FPGA_AFE_DAC + 4 * (i - 1));
-	return scnprintf(buf, PAGE_SIZE, "%u\n", value);
-}
-
-static ssize_t dac_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	u32 value;
-	int i = (int)attr->attr.name[3] - '0';
-
-	if (!(1 <= i && i <= 7))
-		return -EINVAL;
-
-	if (kstrtou32(buf, 0, &value))
-		return -EINVAL;
-	bar_write(dev, 1, FPGA_AFE_COMMAND);
-	bar_write(dev, value & 0x0000ffff, FPGA_AFE_DAC + 4 * (i - 1));
-	return count;
+	*data = bar_read(dev, FPGA_AFE3_DATA);
+	return 0;
 }
 
 #define __VALUE_RO(name, offset, format) \
@@ -366,6 +322,39 @@ DEVICE_ATTR_RW(name)
 	__VALUE64_RO(name, offset) \
 DEVICE_ATTR_RO(name)
 
+#define __AFE3_RO(name, cmd, index) \
+	static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
+	{ \
+		int ret; \
+		u32 data; \
+		ret = afe3_read(dev, cmd, index, &data); \
+		if (ret < 0) \
+			return ret; \
+		return scnprintf(buf, PAGE_SIZE, "%d\n", data); \
+	}
+
+#define __AFE3_WO(name, cmd, index) \
+	static ssize_t name##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
+	{ \
+		u32 data;\
+		if (kstrtou32(buf, 0, &data)) \
+			return -EINVAL; \
+		afe3_write(dev, cmd, index, data); \
+		return count; \
+	}
+
+#define AFE3_RO(name, cmd, index) \
+	__AFE3_RO(name, cmd, index) \
+DEVICE_ATTR_RO(name)
+#define AFE3_WO(name, cmd, index) \
+	__AFE3_WO(name, cmd, index) \
+DEVICE_ATTR_WO(name)
+#define AFE3_RW(name, cmd_read, cmd_write, index) \
+	__AFE3_RO(name, cmd_read, index) \
+	__AFE3_WO(name, cmd_write, index) \
+DEVICE_ATTR_RW(name)
+
+
 #define BIT_MIRROR(x) ((x&0x80)>>7 | (x&0x40)>>5 | (x&0x20)>>3 | (x&0x10)>>1 | \
 		       (x&0x08)<<1 | (x&0x04)<<3 | (x&0x02)<<5 | (x&0x01)<<7)
 #define WAIT_STATUS while (bar_read(dev, FPGA_FLASH_STATUS) != 2)
@@ -376,7 +365,7 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 	int pos;
 	int flash_offset = (int)offset;
 	int flash_word;
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 
 	if ((count & 0x3) != 0) // Unaligned
 		return -EINVAL;
@@ -402,6 +391,57 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 	return count;
 }
 
+static ssize_t config_write(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer, loff_t offset, size_t count)
+{
+	u32 *data, number_of_words, index;
+	struct device *dev = kobj_to_dev(kobj);
+
+	if (offset != 0)
+		return -EINVAL;
+
+	if ((count & 0x3) != 0) // Unaligned
+		return -EINVAL;
+
+	afe3_write(dev, 4, 0, count);
+
+	data = (void*)buffer;
+	number_of_words = count >> 2;
+
+	for (index = 0; index < number_of_words; ++index) {
+		afe3_write(dev, 4, index + 1, data[index]);
+	}
+
+	return count;
+}
+
+static ssize_t config_read(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char* buffer, loff_t offset, size_t count)
+{
+	u32 *data, number_of_words, index, stored_count;
+	int ret;
+	struct device *dev = kobj_to_dev(kobj);
+
+	if (offset > 0)
+		return 0;
+
+	ret = afe3_read(dev, 5, 0, &stored_count);
+	if (ret < 0)
+		return ret;
+
+	if (count < stored_count)
+		return -EFAULT;
+
+	number_of_words = stored_count >> 2;
+
+	data = (void*)buffer;
+
+	for (index = 0; index < number_of_words; ++index) {
+		ret = afe3_read(dev, 5, index + 1, data + index);
+		if (ret < 0)
+			return ret;
+	}
+	return stored_count;
+}
+
 static ssize_t interrupt_info_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
@@ -411,6 +451,29 @@ static ssize_t interrupt_info_show(struct device *dev, struct device_attribute *
 		fpga_dev->number_of_lengths,
 		fpga_dev->number_of_lengths - fpga_dev->number_of_interrupts);
 }
+
+AFE3_RW(hv, 3, 2, 0);
+AFE3_RW(baseline, 8, 7, 0);
+BIN_ATTR_RW(config, 0);
+AFE3_RW(config0, 5, 4, 0);
+AFE3_RW(config1, 5, 4, 1);
+AFE3_RW(config2, 5, 4, 2);
+AFE3_RW(config3, 5, 4, 3);
+AFE3_RO(diagnostic0, 6, 0);
+AFE3_RO(diagnostic1, 6, 1);
+AFE3_RO(diagnostic2, 6, 2);
+AFE3_RO(diagnostic3, 6, 3);
+AFE3_RO(diagnostic4, 6, 4);
+AFE3_RO(diagnostic5, 6, 5);
+AFE3_RO(diagnostic6, 6, 6);
+AFE3_RO(diagnostic7, 6, 7);
+AFE3_RO(diagnostic10, 6, 10);
+AFE3_RO(diagnostic20, 6, 20);
+AFE3_RO(diagnostic21, 6, 21);
+AFE3_RO(diagnostic22, 6, 22);
+AFE3_RO(diagnostic23, 6, 23);
+AFE3_RO(diagnostic24, 6, 24);
+AFE3_RO(diagnostic25, 6, 25);
 
 VALUE64_RO(ext_freq, FPGA_EXT_FREQ);
 VALUE_RO(pll_mult, FPGA_PLL_MULT, "%d");
@@ -430,20 +493,32 @@ VALUE_WO(sync, FPGA_SYNC);
 VALUE_RW(pause, FPGA_PAUSE, "%d");
 VALUE64_RO(resolution, FPGA_RESOLUTION);
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
-VALUE_RW(overload_trigger, FPGA_OVERLOAD_TRIGGER, "%d");
-DEVICE_ATTR_RW(afe_on);
-DEVICE_ATTR_RW(hv);
-DEVICE_ATTR(dac1, S_IWUSR | S_IRUGO, dac_show, dac_store);
-DEVICE_ATTR(dac2, S_IWUSR | S_IRUGO, dac_show, dac_store);
-DEVICE_ATTR(dac3, S_IWUSR | S_IRUGO, dac_show, dac_store);
-DEVICE_ATTR(dac4, S_IWUSR | S_IRUGO, dac_show, dac_store);
-DEVICE_ATTR(dac5, S_IWUSR | S_IRUGO, dac_show, dac_store);
-DEVICE_ATTR(dac6, S_IWUSR | S_IRUGO, dac_show, dac_store);
-DEVICE_ATTR(dac7, S_IWUSR | S_IRUGO, dac_show, dac_store);
 
 DEVICE_ATTR_RO(interrupt_info);
 
 static struct attribute *fpga_attrs[] = {
+	&dev_attr_hv.attr,
+	&dev_attr_baseline.attr,
+	&dev_attr_config0.attr,
+	&dev_attr_config1.attr,
+	&dev_attr_config2.attr,
+	&dev_attr_config3.attr,
+	&dev_attr_diagnostic0.attr,
+	&dev_attr_diagnostic1.attr,
+	&dev_attr_diagnostic2.attr,
+	&dev_attr_diagnostic3.attr,
+	&dev_attr_diagnostic4.attr,
+	&dev_attr_diagnostic5.attr,
+	&dev_attr_diagnostic6.attr,
+	&dev_attr_diagnostic7.attr,
+	&dev_attr_diagnostic10.attr,
+	&dev_attr_diagnostic20.attr,
+	&dev_attr_diagnostic21.attr,
+	&dev_attr_diagnostic22.attr,
+	&dev_attr_diagnostic23.attr,
+	&dev_attr_diagnostic24.attr,
+	&dev_attr_diagnostic25.attr,
+
 	&dev_attr_ext_freq.attr,
 	&dev_attr_pll_mult.attr,
 	&dev_attr_active_clock.attr,
@@ -461,22 +536,13 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_pause.attr,
 	&dev_attr_resolution.attr,
 	&dev_attr_prepause.attr,
-	&dev_attr_overload_trigger.attr,
-	&dev_attr_afe_on.attr,
-	&dev_attr_hv.attr,
-	&dev_attr_dac1.attr,
-	&dev_attr_dac2.attr,
-	&dev_attr_dac3.attr,
-	&dev_attr_dac4.attr,
-	&dev_attr_dac5.attr,
-	&dev_attr_dac6.attr,
-	&dev_attr_dac7.attr,
 
 	&dev_attr_interrupt_info.attr,
 	NULL,
 };
 
 static struct bin_attribute *fpga_bin_attrs[] = {
+	&bin_attr_config,
 	&bin_attr_firmware,
 	NULL,
 };
