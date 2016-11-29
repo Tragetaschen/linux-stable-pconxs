@@ -160,6 +160,16 @@
 		default-brightness-level = <4>;
 
 	};
+
+	reg_wlan_en: regulator-wlan-en {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan-en";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pmicgpio 0 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <10000>;
+		enable-active-high;
+	};
 };
 
 &i2c1 {
@@ -190,9 +200,22 @@
 		reg = <0x4e>;
 	};
 
+	pmic: pmic@32 {
+		pmicgpio: rn5t618-gpio {
+			compatible = "ricoh,rn5t618-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+
 	rtc: rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
+	};
+
+	wifieeprom: eeprom@55 {
+		compatible = "at,24c64";
+		reg = <0x55>;
 	};
 
 	pressure: bme280@76 {
@@ -266,6 +289,18 @@
 				MX6SX_PAD_QSPI1B_DATA1__GPIO4_IO_25	0x10b0
 			>;
 		};
+
+		pinctrl_usdhc2: usdhc2grp {
+			fsl,pins = <
+				MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x17059
+				MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x10059
+				MX6SX_PAD_SD2_DATA0__USDHC2_DATA0	0x17059
+				MX6SX_PAD_SD2_DATA1__USDHC2_DATA1	0x17059
+				MX6SX_PAD_SD2_DATA2__USDHC2_DATA2	0x17059
+				MX6SX_PAD_SD2_DATA3__USDHC2_DATA3	0x17059
+				MX6SX_PAD_NAND_WP_B__GPIO4_IO_15	0x10b0
+			>;
+		};
 	};
 };
 
@@ -292,4 +327,26 @@
 
 &usdhc1 {
 	status = "disabled";	/* Disable the on-SoM WiFi */
+};
+
+&usdhc2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	bus-width = <4>;
+	non-removable;
+	keep-power-in-suspend;
+	cap-power-off-card;
+	cap-sdio-irq;
+	status = "okay";
+	vmmc-supply = <&reg_wlan_en>;
+
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1273";
+		reg = <2>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+		ref-clock-frequency = <26000000>;
+	};
 };
