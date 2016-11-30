@@ -134,17 +134,6 @@
 		system-power-controller;
 	};
 
-	panel: panel {
-		compatible = "ortustech,com43h4m85ulc", "simple-panel";
-		power-supply = <&display_regulator>;
-
-		port {
-			panel_in_parallel: endpoint {
-				remote-endpoint = <&parallel_out>;
-			};
-		};
-	};
-
 	display_regulator: display-regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "display-regulator-3v3";
@@ -169,6 +158,37 @@
 		gpio = <&pmicgpio 0 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <10000>;
 		enable-active-high;
+	};
+
+	display_spi {
+		compatible = "spi-gpio";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_panel_spi>;
+		gpio-sck = <&gpio5 9 GPIO_ACTIVE_LOW>;
+		gpio-mosi = <&gpio1 16 GPIO_ACTIVE_LOW>;
+		cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		panel: panel@0 {
+			compatible = "ortustech,com32h3n89ulc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_panel>;
+			power-supply = <&display_regulator>;
+			reset-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+			reg = <0>;
+			spi-max-frequency = <10000000>;
+			spi-cpol;
+			spi-cpha;
+
+			port {
+				panel_in_parallel: endpoint {
+					remote-endpoint = <&parallel_out>;
+				};
+			};
+		};
 	};
 };
 
@@ -281,6 +301,20 @@
 				MX6SX_PAD_NAND_WE_B__GPIO4_IO_14	0x10b0
 				MX6SX_PAD_SD3_DATA7__GPIO7_IO_9		0x10b0
 				MX6SX_PAD_SD3_DATA5__GPIO7_IO_7		0x10b0
+			>;
+		};
+
+		pinctrl_panel: panelgrp {
+			fsl,pins = <
+				MX6SX_PAD_CSI_DATA07__GPIO1_IO_21	0x10b0
+			>;
+		};
+
+		pinctrl_panel_spi: panelspigrp {
+			fsl,pins = <
+				MX6SX_PAD_CSI_DATA02__GPIO1_IO_16	0x10b0
+				MX6SX_PAD_RGMII1_TD3__GPIO5_IO_9	0x10b0
+				MX6SX_PAD_CSI_DATA03__GPIO1_IO_17	0x10b0
 			>;
 		};
 
