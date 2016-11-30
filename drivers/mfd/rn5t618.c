@@ -18,8 +18,13 @@
 #include <linux/regmap.h>
 
 static const struct mfd_cell rn5t618_cells[] = {
-	{ .name = "rn5t618-regulator" },
-	{ .name = "rn5t618-wdt" },
+	{
+		.name		= "rn5t618-regulator",
+		.of_compatible	= "ricoh,rn5t618-regulator"
+	}, {
+		.name		= "rn5t618-wdt",
+		.of_compatible	= "ricoh,rn5t618-wdt"
+	},
 };
 
 static bool rn5t618_volatile_reg(struct device *dev, unsigned int reg)
