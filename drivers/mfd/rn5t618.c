@@ -23,6 +23,9 @@
 
 static const struct mfd_cell rn5t618_cells[] = {
 	{
+		.name		= "rn5t618-gpio",
+		.of_compatible	= "ricoh,rn5t618-gpio"
+	}, {
 		.name		= "rn5t618-regulator",
 		.of_compatible	= "ricoh,rn5t618-regulator"
 	}, {
