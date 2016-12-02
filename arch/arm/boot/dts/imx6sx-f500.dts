@@ -335,6 +335,15 @@
 				MX6SX_PAD_NAND_WP_B__GPIO4_IO_15	0x10b0
 			>;
 		};
+
+		pinctrl_uart4: uart4grp {
+			fsl,pins = <
+				MX6SX_PAD_CSI_VSYNC__UART4_CTS_B		0x1b0b1
+				MX6SX_PAD_CSI_MCLK__UART4_RX			0x1b0b1
+				MX6SX_PAD_CSI_PIXCLK__UART4_TX			0x1b0b1
+				MX6SX_PAD_CSI_HSYNC__UART4_RTS_B		0x1b0b1
+			>;
+		};
 	};
 };
 
@@ -383,4 +392,11 @@
 		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
 		ref-clock-frequency = <26000000>;
 	};
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	uart-has-rtscts;
+	status = "okay";
 };
