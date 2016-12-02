@@ -411,12 +411,49 @@ static int mxsfb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused mxsfb_pm_suspend(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct mxsfb_drm_private *mxsfb = drm ? drm->dev_private : NULL;
+
+	if (!mxsfb)
+		return 0;
+
+	drm_kms_helper_poll_disable(drm);
+
+	mxsfb->state = drm_atomic_helper_suspend(drm);
+	if (IS_ERR(mxsfb->state)) {
+		drm_kms_helper_poll_enable(drm);
+		return PTR_ERR(mxsfb->state);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused mxsfb_pm_resume(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct mxsfb_drm_private *mxsfb = drm ? drm->dev_private : NULL;
+
+	if (!mxsfb)
+		return 0;
+
+	drm_atomic_helper_resume(drm, mxsfb->state);
+	drm_kms_helper_poll_enable(drm);
+	pm_runtime_set_active(dev);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(mxsfb_pm_ops, mxsfb_pm_suspend, mxsfb_pm_resume);
+
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
 	.remove		= mxsfb_remove,
 	.id_table	= mxsfb_devtype,
 	.driver	= {
 		.name		= "mxsfb",
+		.pm		= &mxsfb_pm_ops,
 		.of_match_table	= mxsfb_dt_ids,
 	},
 };
