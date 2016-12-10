@@ -253,7 +253,8 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hu->proto->enqueue(hu, skb);
 
-	hci_uart_tx_wakeup(hu);
+	if (test_bit(HCI_UART_PROTO_READY, &hu->flags))
+		hci_uart_tx_wakeup(hu);
 
 	return 0;
 }
@@ -477,6 +478,7 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 {
 	struct hci_uart *hu = tty->disc_data;
 	struct hci_dev *hdev;
+	unsigned long flags;
 
 	BT_DBG("tty %p", tty);
 
@@ -490,9 +492,11 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 	if (hdev)
 		hci_uart_close(hdev);
 
+	flags = test_and_clear_bit(HCI_UART_PROTO_READY, &hu->flags);
+
 	cancel_work_sync(&hu->write_work);
 
-	if (test_and_clear_bit(HCI_UART_PROTO_READY, &hu->flags)) {
+	if (flags) {
 		if (hdev) {
 			if (test_bit(HCI_UART_REGISTERED, &hu->flags))
 				hci_unregister_dev(hdev);
