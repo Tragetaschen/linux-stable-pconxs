@@ -150,6 +150,25 @@
 		reg = <0x32>;
 
 		regulators {
+			reg_DCDC1: DCDC1 {
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <3500000>;
+				regulator-ramp-delay = <6000>;
+			};
+
+			reg_DCDC2: DCDC2 {
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <3500000>;
+				regulator-ramp-delay = <6000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			reg_DCDC3: DCDC3 {
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <3500000>;
+				regulator-ramp-delay = <6000>;
+			};
 		};
 	};
 
@@ -164,6 +183,26 @@
 	pinctrl-0 = <&pinctrl_qspi1>;
 	status = "disabled";
 	/* Flash is optional */
+};
+
+&reg_1p1 {
+	vin-supply = <&reg_DCDC3>;
+};
+
+&reg_2p5 {
+	vin-supply = <&reg_DCDC3>;
+};
+
+&reg_3p0 {
+	vin-supply = <&reg_DCDC3>;
+};
+
+&reg_arm {
+	vin-supply = <&reg_DCDC1>;
+};
+
+&reg_soc {
+	vin-supply = <&reg_DCDC1>;
 };
 
 &ssi2 {
@@ -215,6 +254,7 @@
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
+	vmmc-supply = <&reg_DCDC3>;
 	bus-width = <4>;
 	no-1-8-v;
 	non-removable;
@@ -225,6 +265,7 @@
 &usdhc4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
+	vmmc-supply = <&reg_DCDC3>;
 	bus-width = <8>;	/* uSD is 4bit, eMMC is 8bit */
 	no-1-8-v;
 	status = "okay";
