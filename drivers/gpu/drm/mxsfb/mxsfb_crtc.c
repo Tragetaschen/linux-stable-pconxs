@@ -24,6 +24,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <linux/clk.h>
@@ -198,10 +199,14 @@ void mxsfb_crtc_enable(struct mxsfb_drm_private *mxsfb)
 {
 	mxsfb_crtc_mode_set_nofb(mxsfb);
 	mxsfb_enable_controller(mxsfb);
+	if (mxsfb->panel)
+		drm_panel_enable(mxsfb->panel);
 }
 
 void mxsfb_crtc_disable(struct mxsfb_drm_private *mxsfb)
 {
+	if (mxsfb->panel)
+		drm_panel_disable(mxsfb->panel);
 	mxsfb_disable_controller(mxsfb);
 }
 
