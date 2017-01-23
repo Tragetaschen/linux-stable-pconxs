@@ -789,10 +789,72 @@ static const struct of_device_id imx6_pcie_of_match[] = {
 	{},
 };
 
+#ifdef CONFIG_PM_SLEEP
+
+static void pci_imx_pm_turn_off(struct imx6_pcie *imx6_pcie)
+{
+	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+			   IMX6SX_GPR12_PCIE_PM_TURN_OFF,
+			   IMX6SX_GPR12_PCIE_PM_TURN_OFF);
+	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+			   IMX6SX_GPR12_PCIE_PM_TURN_OFF, 0);
+}
+
+static int pci_imx_suspend_noirq(struct device *dev)
+{
+	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
+	struct pcie_port *pp = &imx6_pcie->pp;
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		dw_pcie_msi_cfg_store(pp);
+
+	pci_imx_pm_turn_off(imx6_pcie);
+	clk_disable_unprepare(imx6_pcie->pcie);
+	clk_disable_unprepare(imx6_pcie->pcie_phy);
+	clk_disable_unprepare(imx6_pcie->pcie_bus);
+	clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
+	regulator_disable(imx6_pcie->phy_regulator);
+	return 0;
+}
+
+static int pci_imx_resume_noirq(struct device *dev)
+{
+	int ret = 0;
+	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
+	struct pcie_port *pp = &imx6_pcie->pp;
+
+	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+			IMX6Q_GPR12_PCIE_CTL_2, 0);
+	imx6_pcie_assert_core_reset(imx6_pcie);
+	imx6_pcie_init_phy(imx6_pcie);
+
+	imx6_pcie_deassert_core_reset(imx6_pcie);
+	dw_pcie_setup_rc(pp);
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		dw_pcie_msi_cfg_restore(pp);
+	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+			IMX6Q_GPR12_PCIE_CTL_2,
+			IMX6Q_GPR12_PCIE_CTL_2);
+	ret = imx6_pcie_wait_for_link(imx6_pcie);
+	if (ret < 0)
+		pr_err("pcie link is down after resume\n");
+	return 0;
+}
+
+static const struct dev_pm_ops pm_ops = {
+	.suspend_noirq = pci_imx_suspend_noirq,
+	.resume_noirq = pci_imx_resume_noirq,
+};
+
+#endif
+
 static struct platform_driver imx6_pcie_driver = {
 	.driver = {
 		.name	= "imx6q-pcie",
 		.of_match_table = imx6_pcie_of_match,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &pm_ops,
+#endif
 	},
 	.shutdown = imx6_pcie_shutdown,
 };
