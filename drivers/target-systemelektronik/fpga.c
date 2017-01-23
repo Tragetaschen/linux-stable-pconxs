@@ -62,6 +62,9 @@ struct fpga_dev {
 	struct completion data_has_arrived;
 	int number_of_interrupts;
 	int number_of_lengths;
+
+	u64 ram_base_data;
+	u64 ram_base_counts;
 };
 
 static struct class *device_class;
@@ -130,6 +133,7 @@ static void dw_pcie_prog_viewports_inbound(struct fpga_dev *dev)
 const int offset = 0x40000000;
 	while (!pci_is_root_bus(root_complex->bus))
 		root_complex = root_complex->bus->self;
+	dev->ram_base_data = (u64)dev->data.dma_handle;
 	_dw_pcie_prog_viewport_inbound(
 		root_complex,
 		PCIE_ATU_REGION_INDEX0,
@@ -137,6 +141,7 @@ const int offset = 0x40000000;
 		(u64)dev->data.dma_handle,
 		dev->data.size
 	);
+	dev->ram_base_counts = (u64)dev->counts.dma_handle;
 	_dw_pcie_prog_viewport_inbound(
 		root_complex,
 		PCIE_ATU_REGION_INDEX1,
@@ -485,6 +490,18 @@ static ssize_t interrupt_info_show(struct device *dev, struct device_attribute *
 		fpga_dev->number_of_lengths - fpga_dev->number_of_interrupts);
 }
 
+static ssize_t ram_base_data_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fpga_dev->ram_base_data);
+}
+
+static ssize_t ram_base_counts_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fpga_dev->ram_base_counts);
+}
+
 AFE3_RW(hv, 3, 2, 0);
 AFE3_RW(baseline, 8, 7, 0);
 BIN_ATTR_RW(config, 0);
@@ -528,6 +545,8 @@ VALUE64_RO(resolution, FPGA_RESOLUTION);
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
 
 DEVICE_ATTR_RO(interrupt_info);
+DEVICE_ATTR_RO(ram_base_data);
+DEVICE_ATTR_RO(ram_base_counts);
 
 static struct attribute *fpga_attrs[] = {
 	&dev_attr_hv.attr,
@@ -571,6 +590,8 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_prepause.attr,
 
 	&dev_attr_interrupt_info.attr,
+	&dev_attr_ram_base_data.attr,
+	&dev_attr_ram_base_counts.attr,
 	NULL,
 };
 
@@ -728,6 +749,8 @@ static int fpga_driver_probe(struct pci_dev *dev,
 	init_completion(&fpga_dev->data_has_arrived);
 	fpga_dev->number_of_interrupts = 0;
 	fpga_dev->number_of_lengths = 0;
+	fpga_dev->ram_base_data = 0;
+	fpga_dev->ram_base_counts = 0;
 
 	pci_set_drvdata(dev, fpga_dev);
 
