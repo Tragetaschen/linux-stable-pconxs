@@ -25,6 +25,7 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/aer.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
@@ -66,10 +67,17 @@ struct fpga_dev {
 static struct class *device_class;
 static dev_t fpga_devt;
 
+/* Parameters for the waiting for iATU enabled routine */
+#define LINK_WAIT_MAX_IATU_RETRIES	5
+#define LINK_WAIT_IATU_MIN		9000
+#define LINK_WAIT_IATU_MAX		10000
+
 static void _dw_pcie_prog_viewport_inbound(
 	struct pci_dev *dev, u32 viewport,
 	u64 fpga_base, u64 ram_base, u64 size)
 {
+	u32 retries, val;
+
 	pci_write_config_dword(dev, PCIE_ATU_VIEWPORT,
 			       PCIE_ATU_REGION_INBOUND | viewport);
 	pci_write_config_dword(dev, PCIE_ATU_LOWER_BASE,
@@ -101,6 +109,19 @@ static void _dw_pcie_prog_viewport_inbound(
 		ram_base,
 		ram_base + size - 1
 	);
+
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+			pci_read_config_dword(dev, PCIE_ATU_CR2,&val);
+
+		if (val == PCIE_ATU_ENABLE)
+		{
+			dev_info(&dev->dev, "iATU too %d retries", retries);
+			return;
+		}
+
+		usleep_range(LINK_WAIT_IATU_MIN, LINK_WAIT_IATU_MAX);
+	}
+	dev_err(&dev->dev, "iATU is not being enabled\n");
 }
 
 static void dw_pcie_prog_viewports_inbound(struct fpga_dev *dev)
@@ -142,6 +163,18 @@ static bool fpga_allocate_buffers(struct fpga_dev *dev)
 	if(!_fpga_allocate_buffer(dev->pci_dev, &dev->data))
 		return false;
 	return _fpga_allocate_buffer(dev->pci_dev, &dev->counts);
+}
+
+static void _fpga_free_buffer(struct pci_dev *dev,
+				    struct fpga_ringbuffer *pws)
+{
+	dmam_free_coherent(&dev->dev, pws->size, pws->start, pws->dma_handle);
+}
+
+static void fpga_free_buffers(struct fpga_dev *dev)
+{
+	_fpga_free_buffer(dev->pci_dev, &dev->data);
+	_fpga_free_buffer(dev->pci_dev, &dev->counts);
 }
 
 static irqreturn_t handle_data_msi(int irq, void *data)
@@ -679,7 +712,7 @@ static int fpga_driver_probe(struct pci_dev *dev,
 
 	if (dev->vendor != PCI_VENDOR_ID_TARGET || dev->device != PCI_DEVICE_ID_TARGET_FPGA)
 		return -ENODEV;
-	
+
 	fpga_dev = devm_kzalloc(&dev->dev, sizeof(struct fpga_dev), GFP_KERNEL);
 	if (!fpga_dev) {
 		ret = -ENOMEM;
@@ -759,10 +792,13 @@ err_managed:
 static void fpga_driver_remove(struct pci_dev *dev)
 {
 	struct fpga_dev *fpga_dev;
-	fpga_dev = pci_get_drvdata(dev);
 
+	fpga_dev = pci_get_drvdata(dev);
 	device_destroy(device_class, fpga_dev->dev);
 	cdev_del(&fpga_dev->cdev);
+
+	pcim_iounmap_regions(fpga_dev->pci_dev, 3);
+	fpga_free_buffers(fpga_dev);
 	pci_clear_master(dev);
 	pci_disable_pcie_error_reporting(dev);
 	fpga_teardown_irq(fpga_dev);
@@ -780,10 +816,24 @@ static int fpga_driver_suspend (struct pci_dev *pdev, pm_message_t state)
 
 static int fpga_driver_resume (struct pci_dev *pdev)
 {
+	int err;
+	struct fpga_dev *fpga_dev;
+
 	pci_set_power_state(pdev, PCI_D0);
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_WARNING "pci_enable_device failed on resume %d", err);
+		return err;
+	}
 	pci_restore_state(pdev);
 
-	return pci_enable_device(pdev);
+	fpga_dev = pci_get_drvdata(pdev);
+
+	// re-programm atu viewport
+	dw_pcie_prog_viewports_inbound(fpga_dev);
+
+	return 0;
 }
 
 #endif /* CONFIG_PM */
