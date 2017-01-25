@@ -830,6 +830,11 @@ static void fpga_driver_remove(struct pci_dev *dev)
 #ifdef CONFIG_PM
 static int fpga_driver_suspend (struct pci_dev *pdev, pm_message_t state)
 {
+	struct fpga_dev *fpga_dev;
+	fpga_dev = pci_get_drvdata(pdev);
+
+	bar_write(&pdev->dev, 1, FPGA_ENABLE_SUSPEND);
+
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
@@ -839,22 +844,32 @@ static int fpga_driver_suspend (struct pci_dev *pdev, pm_message_t state)
 
 static int fpga_driver_resume (struct pci_dev *pdev)
 {
-	int err;
+	int ret;
 	struct fpga_dev *fpga_dev;
 
 	pci_set_power_state(pdev, PCI_D0);
-
-	err = pci_enable_device(pdev);
-	if (err) {
-		printk(KERN_WARNING "pci_enable_device failed on resume %d", err);
-		return err;
-	}
 	pci_restore_state(pdev);
+
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"failed to enable device after resume (%d)\n", ret);
+		return ret;
+	}
+
+	pci_set_master(pdev);
 
 	fpga_dev = pci_get_drvdata(pdev);
 
+	// reset the data DMA pointer
+	atomic_set(&fpga_dev->unread_data_items, 0);
+	fpga_dev->unsent_start = 0;
+	fpga_dev->counts_position = 0;
+
 	// re-programm atu viewport
 	dw_pcie_prog_viewports_inbound(fpga_dev);
+
+	bar_write(&pdev->dev, 0, FPGA_ENABLE_SUSPEND);
 
 	return 0;
 }
