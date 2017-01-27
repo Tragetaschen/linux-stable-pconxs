@@ -431,53 +431,41 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 
 static ssize_t config_write(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer, loff_t offset, size_t count)
 {
-	u32 *data, number_of_words, index;
+	u32 *data;
 	struct device *dev = kobj_to_dev(kobj);
 
-	if (offset != 0)
+	if (count != 4)
+		return -EINVAL;
+	if (offset & 0x3)
+		return -EINVAL;
+	if (offset >= 1024)
 		return -EINVAL;
 
-	if ((count & 0x3) != 0) // Unaligned
-		return -EINVAL;
-
-	afe3_write(dev, 4, 0, count);
-
-	data = (void*)buffer;
-	number_of_words = count >> 2;
-
-	for (index = 0; index < number_of_words; ++index) {
-		afe3_write(dev, 4, index + 1, data[index]);
-	}
+	data = (u32*)(void*)buffer;
+	afe3_write(dev, 4, offset >> 2, *data);
 
 	return count;
 }
 
 static ssize_t config_read(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char* buffer, loff_t offset, size_t count)
 {
-	u32 *data, number_of_words, index, stored_count;
+	u32 *data;
 	int ret;
 	struct device *dev = kobj_to_dev(kobj);
 
-	if (offset > 0)
-		return 0;
+	if (count != 4)
+		return -EINVAL;
+	if (offset & 0x3)
+		return -EINVAL;
+	if (offset >= 1024)
+		return -EINVAL;
 
-	ret = afe3_read(dev, 5, 0, &stored_count);
+	data = (void*)buffer;
+	ret = afe3_read(dev, 5, offset >> 2, data);
 	if (ret < 0)
 		return ret;
 
-	if (count < stored_count)
-		return -EFAULT;
-
-	number_of_words = stored_count >> 2;
-
-	data = (void*)buffer;
-
-	for (index = 0; index < number_of_words; ++index) {
-		ret = afe3_read(dev, 5, index + 1, data + index);
-		if (ret < 0)
-			return ret;
-	}
-	return stored_count;
+	return count;
 }
 
 static ssize_t interrupt_info_show(struct device *dev, struct device_attribute *attr, char *buf)
