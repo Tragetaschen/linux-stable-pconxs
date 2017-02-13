@@ -531,6 +531,7 @@ VALUE_WO(sync, FPGA_SYNC);
 VALUE_RW(pause, FPGA_PAUSE, "%d");
 VALUE64_RO(resolution, FPGA_RESOLUTION);
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
+VALUE_RW(trigger_pause, FPGA_TRIGGER_PAUSE, "%d");
 VALUE_RO(baseline_variance_first, FPGA_VARIANCE_FIRST, "%d");
 VALUE_RO(baseline_variance_second, FPGA_VARIANCE_SECOND, "%d");
 
@@ -578,6 +579,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_pause.attr,
 	&dev_attr_resolution.attr,
 	&dev_attr_prepause.attr,
+	&dev_attr_trigger_pause.attr,
 	&dev_attr_baseline_variance_first.attr,
 	&dev_attr_baseline_variance_second.attr,
 
