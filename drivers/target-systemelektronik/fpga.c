@@ -534,6 +534,7 @@ VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
 VALUE_RW(trigger_pause, FPGA_TRIGGER_PAUSE, "%d");
 VALUE_RO(baseline_variance_first, FPGA_VARIANCE_FIRST, "%d");
 VALUE_RO(baseline_variance_second, FPGA_VARIANCE_SECOND, "%d");
+VALUE_WO(baseline_variance_reset, FPGA_VARIANCE_FIRST);
 
 DEVICE_ATTR_RO(interrupt_info);
 DEVICE_ATTR_RO(ram_base_data);
@@ -582,6 +583,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_trigger_pause.attr,
 	&dev_attr_baseline_variance_first.attr,
 	&dev_attr_baseline_variance_second.attr,
+	&dev_attr_baseline_variance_reset.attr,
 
 	&dev_attr_interrupt_info.attr,
 	&dev_attr_ram_base_data.attr,
