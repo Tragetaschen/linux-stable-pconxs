@@ -84,6 +84,8 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 
 	writel(ctrl1, mxsfb->base + LCDC_CTRL1);
 	writel(ctrl, mxsfb->base + LCDC_CTRL);
+	writel(ctrl1, mxsfb->base + LCDC_CTRL1);
+	writel(ctrl, mxsfb->base + LCDC_CTRL);
 
 	return 0;
 }
