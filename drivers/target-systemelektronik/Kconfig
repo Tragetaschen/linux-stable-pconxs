@@ -10,6 +10,27 @@ config TARGET_SYSTEMELEKTRONIK_FPGA
 	depends on DMA_CMA
 	default m
 	help
-	Say Y or M here to enable the Target Systemelektronik FPGA device driver
+	  Say Y or M here to enable the Target Systemelektronik FPGA device driver
+
+choice
+	prompt "FPGA Type"
+	default CONFIG_TARGET_SYSTEMELEKTRONIK_F500
+	help
+	  Choose your FPGA implementation
+
+config TARGET_SYSTEMELEKTRONIK_F500
+	bool "F500"
+	depends on TARGET_SYSTEMELEKTRONIK_FPGA
+	help
+	  F500 FPGA implementation
+
+config TARGET_SYSTEMELEKTRONIK_U100
+	bool "U100"
+	depends on TARGET_SYSTEMELEKTRONIK_FPGA
+	help
+	  U100 FPGA implementation
+
+endchoice
 
 endif
+
