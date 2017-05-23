@@ -24,16 +24,12 @@
 #define FPGA_SYSTEM_BASE	0x000
 #define FPGA_ADC_BASE		0x100
 #define FPGA_FLASH_BASE		0x200
-#define FPGA_DAC_BASE		0x300
-#define FPGA_MUX_BASE		0x400
 #define FPGA_STREAM_BASE	0x500
-#define FPGA_AFE_BASE		0x600
-#define FPGA_AFE2_BASE		0x700
+#define FPGA_AFE3_BASE		0x700
 #define FPGA_MEASUREMENT_BASE	0xa00
 
 #define FPGA_EXT_FREQ		(FPGA_SYSTEM_BASE + 0x00)
 #define FPGA_PLL_MULT		(FPGA_SYSTEM_BASE + 0x08)
-#define FPGA_ACTIVE_CLOCK	(FPGA_SYSTEM_BASE + 0x10)
 #define FPGA_BUILD_TIME		(FPGA_SYSTEM_BASE + 0x14)
 #define FPGA_BUILD_NUMBER	(FPGA_SYSTEM_BASE + 0x18)
 #define FPGA_VERSION		(FPGA_SYSTEM_BASE + 0x1c)
@@ -45,30 +41,16 @@
 #define FPGA_FLASH_STATUS	(FPGA_FLASH_BASE + 0x08)
 #define FPGA_FLASH_DATA		(FPGA_FLASH_BASE + 0x0c)
 
-#define FPGA_DAC1		(FPGA_DAC_BASE + 0x00)
-#define FPGA_DAC2		(FPGA_DAC_BASE + 0x04)
-
-#define FPGA_MUX		(FPGA_MUX_BASE + 0x00)
-
 #define FPGA_TRIGGER		(FPGA_STREAM_BASE + 0x00)
 #define FPGA_SAMPLES		(FPGA_STREAM_BASE + 0x04)
 #define FPGA_ACQ		(FPGA_STREAM_BASE + 0x08)
-#define FPGA_SYNC		(FPGA_STREAM_BASE + 0x0c)
 #define FPGA_PAUSE		(FPGA_STREAM_BASE + 0x10)
 #define FPGA_RESOLUTION		(FPGA_STREAM_BASE + 0x14)
 #define FPGA_PREPAUSE		(FPGA_STREAM_BASE + 0x1c)
-#define FPGA_OVERLOAD_TRIGGER	(FPGA_STREAM_BASE + 0x24)
 #define FPGA_TRIGGER_PAUSE	(FPGA_STREAM_BASE + 0x2c)
 
-#define FPGA_AFE_COMMAND	(FPGA_AFE_BASE + 0x00)
-#define FPGA_AFE_ON		(FPGA_AFE_BASE + 0x04)
-#define FPGA_HV_ON		(FPGA_AFE_BASE + 0x08)
-#define FPGA_HV			(FPGA_AFE_BASE + 0x0c)
-#define FPGA_AFE_DAC		(FPGA_AFE_BASE + 0x10)
-//... FPGA_AFE_DAC7		(FPGA_AFE_BASE + 0x28)
-
-#define FPGA_AFE3_COMMAND	(FPGA_AFE2_BASE + 0x00)
-#define FPGA_AFE3_DATA		(FPGA_AFE2_BASE + 0x04)
+#define FPGA_AFE3_COMMAND	(FPGA_AFE3_BASE + 0x00)
+#define FPGA_AFE3_DATA		(FPGA_AFE3_BASE + 0x04)
 
 
 #define FPGA_VARIANCE_FIRST	(FPGA_MEASUREMENT_BASE + 0x00)
@@ -336,19 +318,14 @@ AFE3_RO(diagnostic25, 6, 25);
 
 VALUE64_RO(ext_freq, FPGA_EXT_FREQ);
 VALUE_RO(pll_mult, FPGA_PLL_MULT, "%d");
-VALUE_RO(active_clock, FPGA_ACTIVE_CLOCK, "%d");
 VALUE_RO(build_time, FPGA_BUILD_TIME, "%d");
 VALUE_RO(build_number, FPGA_BUILD_NUMBER, "%d");
 DEVICE_ATTR_RO(version);
 VALUE_RW(adc, FPGA_ADC_CONFIG, "0x%x");
 BIN_ATTR(firmware, S_IWUSR, NULL, firmware_store, 0);
-VALUE_RW(fpga_dac1, FPGA_DAC1, "%d");
-VALUE_RW(fpga_dac2, FPGA_DAC2, "%d");
-VALUE_RW(mux, FPGA_MUX, "0x%x");
 VALUE_RW(trigger, FPGA_TRIGGER, "%d");
 VALUE_RW(samples, FPGA_SAMPLES, "%d");
 VALUE_RW(acq, FPGA_ACQ, "%d");
-VALUE_WO(sync, FPGA_SYNC);
 VALUE_RW(pause, FPGA_PAUSE, "%d");
 VALUE64_RO(resolution, FPGA_RESOLUTION);
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
@@ -386,18 +363,13 @@ static struct attribute *fpga_attrs[] = {
 
 	&dev_attr_ext_freq.attr,
 	&dev_attr_pll_mult.attr,
-	&dev_attr_active_clock.attr,
 	&dev_attr_build_time.attr,
 	&dev_attr_build_number.attr,
 	&dev_attr_version.attr,
 	&dev_attr_adc.attr,
-	&dev_attr_fpga_dac1.attr,
-	&dev_attr_fpga_dac2.attr,
-	&dev_attr_mux.attr,
 	&dev_attr_trigger.attr,
 	&dev_attr_samples.attr,
 	&dev_attr_acq.attr,
-	&dev_attr_sync.attr,
 	&dev_attr_pause.attr,
 	&dev_attr_resolution.attr,
 	&dev_attr_prepause.attr,
