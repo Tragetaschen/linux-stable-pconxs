@@ -260,7 +260,7 @@ static ssize_t interrupt_info_show(struct device *dev, struct device_attribute *
 
 VALUE64_RO(ext_freq, FPGA_EXT_FREQ);
 VALUE_RO(pll_mult, FPGA_PLL_MULT, "%d");
-VALUE_RO(active_clock, FPGA_ACTIVE_CLOCK, "%d");
+VALUE_RW(active_clock, FPGA_ACTIVE_CLOCK, "%d");
 VALUE_RO(build_time, FPGA_BUILD_TIME, "%d");
 VALUE_RO(build_number, FPGA_BUILD_NUMBER, "%d");
 DEVICE_ATTR_RO(version);
