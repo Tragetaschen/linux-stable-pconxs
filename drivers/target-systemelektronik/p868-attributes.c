@@ -54,6 +54,11 @@
 
 #define FPGA_VARIANCE_FIRST	(FPGA_MEASUREMENT_BASE + 0x00)
 #define FPGA_VARIANCE_SECOND	(FPGA_MEASUREMENT_BASE + 0x04)
+#define FPGA_RAW_SAMPLE_COUNT	(FPGA_MEASUREMENT_BASE + 0x08)
+#define FPGA_SHIFTLINE1_INDEX	(FPGA_MEASUREMENT_BASE + 0x0c)
+#define FPGA_SHIFTLINE2_INDEX	(FPGA_MEASUREMENT_BASE + 0x10)
+#define FPGA_ACO		(FPGA_MEASUREMENT_BASE + 0x20)
+#define FPGA_DACO		(FPGA_MEASUREMENT_BASE + 0x24)
 
 static ssize_t version_show(struct device *dev, struct device_attribute *attr, char* buf)
 {
@@ -116,81 +121,6 @@ static int afe3_read(struct device *dev, u32 cmd, u32 index, u32* data)
 
 	*data = bar_read(dev, FPGA_AFE3_DATA);
 	return 0;
-}
-
-static ssize_t roi_show(struct device *dev, struct device_attribute *attr, char *buf, int offset, int x1)
-{
-	int value;
-	value = bar_read(dev, offset);
-	if (x1)
-		value &= 0xffff;
-	else
-		value >>= 16;
-	return scnprintf(buf, PAGE_SIZE, "%u\n", value);
-}
-
-static ssize_t roi_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count, int offset, int x1)
-{
-	int value, bar_value;
-	if (kstrtoint(buf, 0, &value))
-		return -EINVAL;
-	if (value > 0xffff)
-		return -EINVAL;
-	bar_value = bar_read(dev, offset);
-	if (x1) {
-		bar_value &= 0xffff0000;
-		bar_value |= value;
-	}
-	else {
-		bar_value &= 0x0000ffff;
-		bar_value |= value << 16;
-	}
-	bar_write(dev, value, offset);
-	return count;
-}
-
-static ssize_t prescale_show(struct device *dev, struct device_attribute *attr, char *buf, int offset)
-{
-	int address, value;
-	address = FPGA_MEASUREMENT_BASE + (10 << 2);
-	address += offset & 0xfc;
-	value = bar_read(dev, address);
-	value >>= (3 - (offset & 0x3)) * 8;
-	value &= 0xff;
-	return scnprintf(buf, PAGE_SIZE, "%u\n", value);
-}
-
-static ssize_t prescale_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count, int offset)
-{
-	int address, value, bar_value;
-	if (kstrtoint(buf, 0, &value))
-		return -EINVAL;
-	if (value > 0xff)
-		return -EINVAL;
-	address = FPGA_MEASUREMENT_BASE + (10 << 2);
-	address += offset & 0xfc;
-	bar_value = bar_read(dev, address);
-	switch(offset & 0x3)
-	{
-		case 0:
-			bar_value &= 0x00ffffff;
-			bar_value |= value << 24;
-			break;
-		case 1:
-			bar_value &= 0xff00ffff;
-			bar_value |= value << 16;
-			break;
-		case 2:
-			bar_value &= 0xffff00ff;
-			bar_value |= value << 8;
-			break;
-		case 3:
-			bar_value &= 0xffffff00;
-			bar_value |= value;
-			break;
-	}
-	bar_write(dev, value, address);
-	return count;
 }
 
 #define __VALUE_RO(name, offset, format) \
@@ -270,38 +200,9 @@ DEVICE_ATTR_WO(name)
 DEVICE_ATTR_RW(name)
 
 #define SP_ROI(name, offset) \
-	static ssize_t name##_x0_show(struct device *dev, struct device_attribute *attr, char *buf) \
-	{ \
-		return roi_show(dev, attr, buf, FPGA_MEASUREMENT_BASE + (offset << 2), 0); \
-	}\
-\
-	static ssize_t name##_x0_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
-	{ \
-		return roi_store(dev, attr, buf, count, FPGA_MEASUREMENT_BASE + (offset << 2), 0); \
-	} \
-	static ssize_t name##_x1_show(struct device *dev, struct device_attribute *attr, char *buf) \
-	{ \
-		return roi_show(dev, attr, buf, FPGA_MEASUREMENT_BASE + (offset << 2), 1); \
-	}\
-\
-	static ssize_t name##_x1_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
-	{ \
-		return roi_store(dev, attr, buf, count, FPGA_MEASUREMENT_BASE + (offset << 2), 1); \
-	} \
-DEVICE_ATTR_RW(name##_x0); \
-DEVICE_ATTR_RW(name##_x1)
-
-#define SP_PRESCALING(name, offset) \
-	static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
-	{ \
-		return prescale_show(dev, attr, buf, offset); \
-	}\
-\
-	static ssize_t name##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
-	{ \
-		return prescale_store(dev, attr, buf, count, offset); \
-	} \
-DEVICE_ATTR_RW(name)
+	VALUE_RW(name##_x0, FPGA_MEASUREMENT_BASE+offset, "%d"); \
+	VALUE_RW(name##_x1, FPGA_MEASUREMENT_BASE+offset+4, "%d"); \
+	VALUE_RW(name##_scale, FPGA_MEASUREMENT_BASE+offset+8, "%d")
 
 #define BIT_MIRROR(x) ((x&0x80)>>7 | (x&0x40)>>5 | (x&0x20)>>3 | (x&0x10)>>1 | \
 		       (x&0x08)<<1 | (x&0x04)<<3 | (x&0x02)<<5 | (x&0x01)<<7)
@@ -497,52 +398,90 @@ static struct bin_attribute *fpga_bin_attrs[] = {
 	NULL,
 };
 
-SP_ROI(roi1, 2);
-SP_ROI(roi2, 3);
-SP_ROI(ediffbaserange, 4);
-SP_ROI(ediffpulserange, 5);
-SP_ROI(pulsebaserange, 6);
-SP_ROI(pulserange, 7);
-SP_ROI(diffbaserange, 8);
-SP_ROI(diffrange, 9);
-SP_PRESCALING(prescale_pulserange, 0);
-SP_PRESCALING(prescale_pulserange_base, 1);
-SP_PRESCALING(prescale_roi1, 2);
-SP_PRESCALING(prescale_roi1_base, 3);
-SP_PRESCALING(prescale_roi2, 4);
-SP_PRESCALING(prescale_roi2_base, 5);
-SP_PRESCALING(prescale_diffrange, 6);
-SP_PRESCALING(prescale_diffrange_base, 7);
-SP_PRESCALING(prescale_ediffrange, 8);
-SP_PRESCALING(prescale_ediffrange_base, 9);
+VALUE_RW(raw_sample_count, FPGA_RAW_SAMPLE_COUNT, "%d");
+VALUE_RW(shiftline1_index, FPGA_SHIFTLINE1_INDEX, "%d");
+VALUE_RW(shiftline2_index, FPGA_SHIFTLINE2_INDEX, "%d");
+VALUE_RW(aco, FPGA_ACO, "%d");
+VALUE_RW(daco, FPGA_DACO, "%d");
+SP_ROI(pulserange1, 0x28);
+SP_ROI(pulsebaserange1, 0x34);
+SP_ROI(pulserange2, 0x40);
+SP_ROI(pulsebaserange2, 0x4c);
+SP_ROI(ediffrange, 0x58);
+SP_ROI(ediffbaserange, 0x64);
+SP_ROI(roi1, 0x70);
+SP_ROI(spare1, 0x7c);
+SP_ROI(roi2, 0x88);
+SP_ROI(spare2, 0x94);
+SP_ROI(diffrange, 0xa0);
+SP_ROI(diffbaserange, 0xac);
+SP_ROI(neutronrange1, 0xb8);
+SP_ROI(neutronrange2, 0xc4);
+SP_ROI(spare3, 0xd0);
+SP_ROI(spare4, 0xdc);
+SP_ROI(spare5, 0xe8);
+SP_ROI(spare6, 0xf4);
 
 static struct attribute *signal_processing_group_attrs[] = {
-	&dev_attr_roi1_x0.attr,
-	&dev_attr_roi1_x1.attr,
-	&dev_attr_roi2_x0.attr,
-	&dev_attr_roi2_x1.attr,
+	&dev_attr_raw_sample_count.attr,
+	&dev_attr_shiftline1_index.attr,
+	&dev_attr_shiftline2_index.attr,
+	&dev_attr_aco.attr,
+	&dev_attr_daco.attr,
+	&dev_attr_pulserange1_x0.attr,
+	&dev_attr_pulserange1_x1.attr,
+	&dev_attr_pulserange1_scale.attr,
+	&dev_attr_pulsebaserange1_x0.attr,
+	&dev_attr_pulsebaserange1_x1.attr,
+	&dev_attr_pulsebaserange1_scale.attr,
+	&dev_attr_pulserange2_x0.attr,
+	&dev_attr_pulserange2_x1.attr,
+	&dev_attr_pulserange2_scale.attr,
+	&dev_attr_pulsebaserange2_x0.attr,
+	&dev_attr_pulsebaserange2_x1.attr,
+	&dev_attr_pulsebaserange2_scale.attr,
+	&dev_attr_ediffrange_x0.attr,
+	&dev_attr_ediffrange_x1.attr,
+	&dev_attr_ediffrange_scale.attr,
 	&dev_attr_ediffbaserange_x0.attr,
 	&dev_attr_ediffbaserange_x1.attr,
-	&dev_attr_ediffpulserange_x0.attr,
-	&dev_attr_ediffpulserange_x1.attr,
-	&dev_attr_pulsebaserange_x0.attr,
-	&dev_attr_pulsebaserange_x1.attr,
-	&dev_attr_pulserange_x0.attr,
-	&dev_attr_pulserange_x1.attr,
-	&dev_attr_diffbaserange_x0.attr,
-	&dev_attr_diffbaserange_x1.attr,
+	&dev_attr_ediffbaserange_scale.attr,
+	&dev_attr_roi1_x0.attr,
+	&dev_attr_roi1_x1.attr,
+	&dev_attr_roi1_scale.attr,
+	&dev_attr_spare1_x0.attr,
+	&dev_attr_spare1_x1.attr,
+	&dev_attr_spare1_scale.attr,
+	&dev_attr_roi2_x0.attr,
+	&dev_attr_roi2_x1.attr,
+	&dev_attr_roi2_scale.attr,
+	&dev_attr_spare2_x0.attr,
+	&dev_attr_spare2_x1.attr,
+	&dev_attr_spare2_scale.attr,
 	&dev_attr_diffrange_x0.attr,
 	&dev_attr_diffrange_x1.attr,
-	&dev_attr_prescale_pulserange.attr,
-	&dev_attr_prescale_pulserange_base.attr,
-	&dev_attr_prescale_roi1.attr,
-	&dev_attr_prescale_roi1_base.attr,
-	&dev_attr_prescale_roi2.attr,
-	&dev_attr_prescale_roi2_base.attr,
-	&dev_attr_prescale_diffrange.attr,
-	&dev_attr_prescale_diffrange_base.attr,
-	&dev_attr_prescale_ediffrange.attr,
-	&dev_attr_prescale_ediffrange_base.attr,
+	&dev_attr_diffrange_scale.attr,
+	&dev_attr_diffbaserange_x0.attr,
+	&dev_attr_diffbaserange_x1.attr,
+	&dev_attr_diffbaserange_scale.attr,
+	&dev_attr_neutronrange1_x0.attr,
+	&dev_attr_neutronrange1_x1.attr,
+	&dev_attr_neutronrange1_scale.attr,
+	&dev_attr_neutronrange2_x0.attr,
+	&dev_attr_neutronrange2_x1.attr,
+	&dev_attr_neutronrange2_scale.attr,
+	&dev_attr_spare3_x0.attr,
+	&dev_attr_spare3_x1.attr,
+	&dev_attr_spare3_scale.attr,
+	&dev_attr_spare4_x0.attr,
+	&dev_attr_spare4_x1.attr,
+	&dev_attr_spare4_scale.attr,
+	&dev_attr_spare5_x0.attr,
+	&dev_attr_spare5_x1.attr,
+	&dev_attr_spare5_scale.attr,
+	&dev_attr_spare6_x0.attr,
+	&dev_attr_spare6_x1.attr,
+	&dev_attr_spare6_scale.attr,
 	NULL,
 };
 
