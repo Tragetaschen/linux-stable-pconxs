@@ -57,6 +57,7 @@
 #define FPGA_RAW_SAMPLE_COUNT	(FPGA_MEASUREMENT_BASE + 0x08)
 #define FPGA_SHIFTLINE1_INDEX	(FPGA_MEASUREMENT_BASE + 0x0c)
 #define FPGA_SHIFTLINE2_INDEX	(FPGA_MEASUREMENT_BASE + 0x10)
+#define FPGA_FIR_BANK		(FPGA_MEASUREMENT_BASE + 0x1c)
 #define FPGA_ACO		(FPGA_MEASUREMENT_BASE + 0x20)
 #define FPGA_DACO		(FPGA_MEASUREMENT_BASE + 0x24)
 
@@ -202,7 +203,8 @@ DEVICE_ATTR_RW(name)
 #define SP_ROI(name, offset) \
 	VALUE_RW(name##_x0, FPGA_MEASUREMENT_BASE+offset, "%d"); \
 	VALUE_RW(name##_x1, FPGA_MEASUREMENT_BASE+offset+4, "%d"); \
-	VALUE_RW(name##_scale, FPGA_MEASUREMENT_BASE+offset+8, "%d")
+	VALUE_RW(name##_scale, FPGA_MEASUREMENT_BASE+offset+8, "%d"); \
+	VALUE_RW(name##_bgscale, FPGA_MEASUREMENT_BASE+offset+12, "%d")
 
 #define BIT_MIRROR(x) ((x&0x80)>>7 | (x&0x40)>>5 | (x&0x20)>>3 | (x&0x10)>>1 | \
 		       (x&0x08)<<1 | (x&0x04)<<3 | (x&0x02)<<5 | (x&0x01)<<7)
@@ -401,87 +403,108 @@ static struct bin_attribute *fpga_bin_attrs[] = {
 VALUE_RW(raw_sample_count, FPGA_RAW_SAMPLE_COUNT, "%d");
 VALUE_RW(shiftline1_index, FPGA_SHIFTLINE1_INDEX, "%d");
 VALUE_RW(shiftline2_index, FPGA_SHIFTLINE2_INDEX, "%d");
+VALUE_RW(fir_bank, FPGA_FIR_BANK, "%d");
 VALUE_RW(aco, FPGA_ACO, "%d");
 VALUE_RW(daco, FPGA_DACO, "%d");
-SP_ROI(pulserange1, 0x28);
-SP_ROI(pulsebaserange1, 0x34);
-SP_ROI(pulserange2, 0x40);
-SP_ROI(pulsebaserange2, 0x4c);
-SP_ROI(ediffrange, 0x58);
-SP_ROI(ediffbaserange, 0x64);
-SP_ROI(roi1, 0x70);
-SP_ROI(spare1, 0x7c);
-SP_ROI(roi2, 0x88);
-SP_ROI(spare2, 0x94);
-SP_ROI(diffrange, 0xa0);
-SP_ROI(diffbaserange, 0xac);
-SP_ROI(neutronrange1, 0xb8);
-SP_ROI(neutronrange2, 0xc4);
-SP_ROI(spare3, 0xd0);
-SP_ROI(spare4, 0xdc);
-SP_ROI(spare5, 0xe8);
-SP_ROI(spare6, 0xf4);
+SP_ROI(pulsebaserange1, 0x28);
+SP_ROI(pulsebaserange2, 0x38);
+SP_ROI(pulserange1, 0x48);
+SP_ROI(pulserange2, 0x58);
+SP_ROI(arange, 0x68);
+SP_ROI(brange, 0x78);
+SP_ROI(neutronrange1, 0x88);
+SP_ROI(neutronrange2, 0x98);
+SP_ROI(spare0, 0xa8);
+SP_ROI(spare1, 0xb8);
+SP_ROI(spare2, 0xc8);
+SP_ROI(spare3, 0xd8);
+SP_ROI(spare4, 0xe8);
+SP_ROI(spare5, 0xf8);
+SP_ROI(diffbaserange, 0x108);
+SP_ROI(diffrange, 0x118);
+SP_ROI(ediffbaserange, 0x128);
+SP_ROI(ediffrange, 0x138);
+
 
 static struct attribute *signal_processing_group_attrs[] = {
 	&dev_attr_raw_sample_count.attr,
 	&dev_attr_shiftline1_index.attr,
 	&dev_attr_shiftline2_index.attr,
+	&dev_attr_fir_bank.attr,
 	&dev_attr_aco.attr,
 	&dev_attr_daco.attr,
-	&dev_attr_pulserange1_x0.attr,
-	&dev_attr_pulserange1_x1.attr,
-	&dev_attr_pulserange1_scale.attr,
 	&dev_attr_pulsebaserange1_x0.attr,
 	&dev_attr_pulsebaserange1_x1.attr,
 	&dev_attr_pulsebaserange1_scale.attr,
-	&dev_attr_pulserange2_x0.attr,
-	&dev_attr_pulserange2_x1.attr,
-	&dev_attr_pulserange2_scale.attr,
+	&dev_attr_pulsebaserange1_bgscale.attr,
 	&dev_attr_pulsebaserange2_x0.attr,
 	&dev_attr_pulsebaserange2_x1.attr,
 	&dev_attr_pulsebaserange2_scale.attr,
-	&dev_attr_ediffrange_x0.attr,
-	&dev_attr_ediffrange_x1.attr,
-	&dev_attr_ediffrange_scale.attr,
-	&dev_attr_ediffbaserange_x0.attr,
-	&dev_attr_ediffbaserange_x1.attr,
-	&dev_attr_ediffbaserange_scale.attr,
-	&dev_attr_roi1_x0.attr,
-	&dev_attr_roi1_x1.attr,
-	&dev_attr_roi1_scale.attr,
-	&dev_attr_spare1_x0.attr,
-	&dev_attr_spare1_x1.attr,
-	&dev_attr_spare1_scale.attr,
-	&dev_attr_roi2_x0.attr,
-	&dev_attr_roi2_x1.attr,
-	&dev_attr_roi2_scale.attr,
-	&dev_attr_spare2_x0.attr,
-	&dev_attr_spare2_x1.attr,
-	&dev_attr_spare2_scale.attr,
-	&dev_attr_diffrange_x0.attr,
-	&dev_attr_diffrange_x1.attr,
-	&dev_attr_diffrange_scale.attr,
-	&dev_attr_diffbaserange_x0.attr,
-	&dev_attr_diffbaserange_x1.attr,
-	&dev_attr_diffbaserange_scale.attr,
+	&dev_attr_pulsebaserange2_bgscale.attr,
+	&dev_attr_pulserange1_x0.attr,
+	&dev_attr_pulserange1_x1.attr,
+	&dev_attr_pulserange1_scale.attr,
+	&dev_attr_pulserange1_bgscale.attr,
+	&dev_attr_pulserange2_x0.attr,
+	&dev_attr_pulserange2_x1.attr,
+	&dev_attr_pulserange2_scale.attr,
+	&dev_attr_pulserange2_bgscale.attr,
+	&dev_attr_arange_x0.attr,
+	&dev_attr_arange_x1.attr,
+	&dev_attr_arange_scale.attr,
+	&dev_attr_arange_bgscale.attr,
+	&dev_attr_brange_x0.attr,
+	&dev_attr_brange_x1.attr,
+	&dev_attr_brange_scale.attr,
+	&dev_attr_brange_bgscale.attr,
 	&dev_attr_neutronrange1_x0.attr,
 	&dev_attr_neutronrange1_x1.attr,
 	&dev_attr_neutronrange1_scale.attr,
+	&dev_attr_neutronrange1_bgscale.attr,
 	&dev_attr_neutronrange2_x0.attr,
 	&dev_attr_neutronrange2_x1.attr,
 	&dev_attr_neutronrange2_scale.attr,
+	&dev_attr_neutronrange2_bgscale.attr,
+	&dev_attr_spare0_x0.attr,
+	&dev_attr_spare0_x1.attr,
+	&dev_attr_spare0_scale.attr,
+	&dev_attr_spare0_bgscale.attr,
+	&dev_attr_spare1_x0.attr,
+	&dev_attr_spare1_x1.attr,
+	&dev_attr_spare1_scale.attr,
+	&dev_attr_spare1_bgscale.attr,
+	&dev_attr_spare2_x0.attr,
+	&dev_attr_spare2_x1.attr,
+	&dev_attr_spare2_scale.attr,
+	&dev_attr_spare2_bgscale.attr,
 	&dev_attr_spare3_x0.attr,
 	&dev_attr_spare3_x1.attr,
 	&dev_attr_spare3_scale.attr,
+	&dev_attr_spare3_bgscale.attr,
 	&dev_attr_spare4_x0.attr,
 	&dev_attr_spare4_x1.attr,
 	&dev_attr_spare4_scale.attr,
+	&dev_attr_spare4_bgscale.attr,
 	&dev_attr_spare5_x0.attr,
 	&dev_attr_spare5_x1.attr,
 	&dev_attr_spare5_scale.attr,
-	&dev_attr_spare6_x0.attr,
-	&dev_attr_spare6_x1.attr,
-	&dev_attr_spare6_scale.attr,
+	&dev_attr_spare5_bgscale.attr,
+	&dev_attr_diffbaserange_x0.attr,
+	&dev_attr_diffbaserange_x1.attr,
+	&dev_attr_diffbaserange_scale.attr,
+	&dev_attr_diffbaserange_bgscale.attr,
+	&dev_attr_diffrange_x0.attr,
+	&dev_attr_diffrange_x1.attr,
+	&dev_attr_diffrange_scale.attr,
+	&dev_attr_diffrange_bgscale.attr,
+	&dev_attr_ediffbaserange_x0.attr,
+	&dev_attr_ediffbaserange_x1.attr,
+	&dev_attr_ediffbaserange_scale.attr,
+	&dev_attr_ediffbaserange_bgscale.attr,
+	&dev_attr_ediffrange_x0.attr,
+	&dev_attr_ediffrange_x1.attr,
+	&dev_attr_ediffrange_scale.attr,
+	&dev_attr_ediffrange_bgscale.attr,
 	NULL,
 };
 
