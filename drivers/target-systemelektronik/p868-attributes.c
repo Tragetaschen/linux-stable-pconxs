@@ -27,6 +27,7 @@
 #define FPGA_STREAM_BASE	0x500
 #define FPGA_AFE3_BASE		0x700
 #define FPGA_MEASUREMENT_BASE	0xa00
+#define FPGA_DOSE_RATE_BASE	0xc00
 
 #define FPGA_EXT_FREQ		(FPGA_SYSTEM_BASE + 0x00)
 #define FPGA_PLL_MULT		(FPGA_SYSTEM_BASE + 0x08)
@@ -60,6 +61,14 @@
 #define FPGA_FIR_BANK		(FPGA_MEASUREMENT_BASE + 0x1c)
 #define FPGA_ACO		(FPGA_MEASUREMENT_BASE + 0x20)
 #define FPGA_DACO		(FPGA_MEASUREMENT_BASE + 0x24)
+
+#define FPGA_DOSE_RATE_COEFFICIENTS	(FPGA_DOSE_RATE_BASE + 0x00)
+#define FPGA_DOSE_RATE_WEIGHTS		(FPGA_DOSE_RATE_BASE + 0x08)
+#define FPGA_DOSE_RATE_LIMITS		(FPGA_DOSE_RATE_BASE + 0x24)
+#define FPGA_DOSE_RATE_FINE_GAIN	(FPGA_DOSE_RATE_BASE + 0x3c)
+#define FPGA_DOSE_RATE_ALARM_LEVEL	(FPGA_DOSE_RATE_BASE + 0x40)
+#define FPGA_DOSE_RATE_MAX_ENERGY	(FPGA_DOSE_RATE_BASE + 0x44)
+#define FPGA_DOSE_RATE_BIT_SHIFTS	(FPGA_DOSE_RATE_BASE + 0x48)
 
 static ssize_t version_show(struct device *dev, struct device_attribute *attr, char* buf)
 {
@@ -213,8 +222,6 @@ DEVICE_ATTR_RO(name)
 		return count; \
 	}
 
-#define ROI
-
 #define AFE3_RO(name, cmd, index) \
 	__AFE3_RO(name, cmd, index) \
 DEVICE_ATTR_RO(name)
@@ -332,6 +339,106 @@ static ssize_t ram_base_counts_show(struct device *dev, struct device_attribute 
 {
 	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fpga_dev->ram_base_counts);
+}
+
+static ssize_t coefficients_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int c0, c1;
+	c0 = bar_read(dev, FPGA_DOSE_RATE_COEFFICIENTS);
+	c1 = bar_read(dev, FPGA_DOSE_RATE_COEFFICIENTS + 4);
+	return scnprintf(buf, PAGE_SIZE, "%d %d\n", c0, c1);
+}
+
+static ssize_t coefficients_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	int c0, c1;
+	ret = sscanf(buf, "%d %d", &c0, &c1);
+	if (ret != 2)
+		return -EINVAL;
+	bar_write(dev, c0, FPGA_DOSE_RATE_COEFFICIENTS);
+	bar_write(dev, c1, FPGA_DOSE_RATE_COEFFICIENTS + 4);
+	return count;
+}
+
+static ssize_t weights_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int w0, w1, w2, w3, w4, w5, w6;
+	w0 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS);
+	w1 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS + 0x04);
+	w2 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS + 0x08);
+	w3 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS + 0x0c);
+	w4 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS + 0x10);
+	w5 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS + 0x14);
+	w6 = bar_read(dev, FPGA_DOSE_RATE_WEIGHTS + 0x18);
+	return scnprintf(buf, PAGE_SIZE, "%d %d %d %d %d %d %d\n", w0, w1, w2, w3, w4, w5, w6);
+}
+
+static ssize_t weights_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	int w0, w1, w2, w3, w4, w5, w6;
+	ret = sscanf(buf, "%d %d %d %d %d %d %d", &w0, &w1, &w2, &w3, &w4, &w5, &w6);
+	if (ret != 7)
+		return -EINVAL;
+	bar_write(dev, w0, FPGA_DOSE_RATE_WEIGHTS);
+	bar_write(dev, w1, FPGA_DOSE_RATE_WEIGHTS + 0x04);
+	bar_write(dev, w2, FPGA_DOSE_RATE_WEIGHTS + 0x08);
+	bar_write(dev, w3, FPGA_DOSE_RATE_WEIGHTS + 0x0c);
+	bar_write(dev, w4, FPGA_DOSE_RATE_WEIGHTS + 0x10);
+	bar_write(dev, w5, FPGA_DOSE_RATE_WEIGHTS + 0x14);
+	bar_write(dev, w6, FPGA_DOSE_RATE_WEIGHTS + 0x18);
+	return count;
+}
+
+static ssize_t limits_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int l0, l1, l2, l3, l4, l5;
+	l0 = bar_read(dev, FPGA_DOSE_RATE_LIMITS);
+	l1 = bar_read(dev, FPGA_DOSE_RATE_LIMITS + 0x04);
+	l2 = bar_read(dev, FPGA_DOSE_RATE_LIMITS + 0x08);
+	l3 = bar_read(dev, FPGA_DOSE_RATE_LIMITS + 0x0c);
+	l4 = bar_read(dev, FPGA_DOSE_RATE_LIMITS + 0x10);
+	l5 = bar_read(dev, FPGA_DOSE_RATE_LIMITS + 0x14);
+	return scnprintf(buf, PAGE_SIZE, "%d %d %d %d %d %d\n", l0, l1, l2, l3, l4, l5);
+}
+
+static ssize_t limits_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	int l0, l1, l2, l3, l4, l5;
+	ret = sscanf(buf, "%d %d %d %d %d %d", &l0, &l1, &l2, &l3, &l4, &l5);
+	if (ret != 6)
+		return -EINVAL;
+	bar_write(dev, l0, FPGA_DOSE_RATE_LIMITS);
+	bar_write(dev, l1, FPGA_DOSE_RATE_LIMITS + 0x04);
+	bar_write(dev, l2, FPGA_DOSE_RATE_LIMITS + 0x08);
+	bar_write(dev, l3, FPGA_DOSE_RATE_LIMITS + 0x0c);
+	bar_write(dev, l4, FPGA_DOSE_RATE_LIMITS + 0x10);
+	bar_write(dev, l5, FPGA_DOSE_RATE_LIMITS + 0x14);
+	return count;
+}
+
+static ssize_t bit_shifts_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int b0, b1, b2;
+	b0 = bar_read(dev, FPGA_DOSE_RATE_BIT_SHIFTS);
+	b1 = bar_read(dev, FPGA_DOSE_RATE_BIT_SHIFTS + 4);
+	b2 = bar_read(dev, FPGA_DOSE_RATE_BIT_SHIFTS + 8);
+	return scnprintf(buf, PAGE_SIZE, "%d %d %d\n", b0, b1, b2);
+}
+
+static ssize_t bit_shifts_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	int b0, b1, b2;
+	ret = sscanf(buf, "%d %d %d", &b0, &b1, &b2);
+	if (ret != 3)
+		return -EINVAL;
+	bar_write(dev, b0, FPGA_DOSE_RATE_BIT_SHIFTS);
+	bar_write(dev, b1, FPGA_DOSE_RATE_BIT_SHIFTS + 4);
+	bar_write(dev, b2, FPGA_DOSE_RATE_BIT_SHIFTS + 8);
+	return count;
 }
 
 AFE3_RW(hv, 3, 2, 0);
@@ -496,6 +603,25 @@ static struct attribute *afe_group_attrs[] = {
 	NULL,
 };
 
+DEVICE_ATTR_RW(coefficients);
+DEVICE_ATTR_RW(weights);
+DEVICE_ATTR_RW(limits);
+VALUE_RW(fine_gain, FPGA_DOSE_RATE_FINE_GAIN, "%d");
+VALUE_RW(alarm_level, FPGA_DOSE_RATE_ALARM_LEVEL, "%d");
+VALUE_RW(max_energy, FPGA_DOSE_RATE_MAX_ENERGY, "%d");
+DEVICE_ATTR_RW(bit_shifts);
+
+static struct attribute *dose_rate_group_attrs[] = {
+	&dev_attr_coefficients.attr,
+	&dev_attr_weights.attr,
+	&dev_attr_limits.attr,
+	&dev_attr_fine_gain.attr,
+	&dev_attr_alarm_level.attr,
+	&dev_attr_max_energy.attr,
+	&dev_attr_bit_shifts.attr,
+	NULL,
+};
+
 static const struct attribute_group fpga_group = {
 	.attrs = fpga_attrs,
 	.bin_attrs = fpga_bin_attrs,
@@ -511,10 +637,16 @@ static const struct attribute_group afe_group = {
 	.name = "afe"
 };
 
+static const struct attribute_group dose_rate_group = {
+	.attrs = dose_rate_group_attrs,
+	.name = "dose_rate"
+};
+
 const struct attribute_group *fpga_attribute_groups[] = {
 	&fpga_group,
 	&signal_processing_group,
 	&afe_group,
+	&dose_rate_group,
 	NULL,
 };
 
