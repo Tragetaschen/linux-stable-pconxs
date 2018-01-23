@@ -341,21 +341,6 @@ AFE3_RW(config0, 5, 4, 0);
 AFE3_RW(config1, 5, 4, 1);
 AFE3_RW(config2, 5, 4, 2);
 AFE3_RW(config3, 5, 4, 3);
-AFE3_RO(diagnostic0, 6, 0);
-AFE3_RO(diagnostic1, 6, 1);
-AFE3_RO(diagnostic2, 6, 2);
-AFE3_RO(diagnostic3, 6, 3);
-AFE3_RO(diagnostic4, 6, 4);
-AFE3_RO(diagnostic5, 6, 5);
-AFE3_RO(diagnostic6, 6, 6);
-AFE3_RO(diagnostic7, 6, 7);
-AFE3_RO(diagnostic10, 6, 10);
-AFE3_RO(diagnostic20, 6, 20);
-AFE3_RO(diagnostic21, 6, 21);
-AFE3_RO(diagnostic22, 6, 22);
-AFE3_RO(diagnostic23, 6, 23);
-AFE3_RO(diagnostic24, 6, 24);
-AFE3_RO(diagnostic25, 6, 25);
 
 VALUE64_RO(ext_freq, FPGA_EXT_FREQ);
 VALUE_RO(pll_mult, FPGA_PLL_MULT, "%d");
@@ -386,21 +371,6 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_config1.attr,
 	&dev_attr_config2.attr,
 	&dev_attr_config3.attr,
-	&dev_attr_diagnostic0.attr,
-	&dev_attr_diagnostic1.attr,
-	&dev_attr_diagnostic2.attr,
-	&dev_attr_diagnostic3.attr,
-	&dev_attr_diagnostic4.attr,
-	&dev_attr_diagnostic5.attr,
-	&dev_attr_diagnostic6.attr,
-	&dev_attr_diagnostic7.attr,
-	&dev_attr_diagnostic10.attr,
-	&dev_attr_diagnostic20.attr,
-	&dev_attr_diagnostic21.attr,
-	&dev_attr_diagnostic22.attr,
-	&dev_attr_diagnostic23.attr,
-	&dev_attr_diagnostic24.attr,
-	&dev_attr_diagnostic25.attr,
 
 	&dev_attr_ext_freq.attr,
 	&dev_attr_pll_mult.attr,
@@ -485,6 +455,47 @@ static struct attribute *signal_processing_group_attrs[] = {
 	NULL,
 };
 
+AFE3_RO(v_dynode, 6, 0);
+AFE3_RO(v_anode, 6, 1);
+AFE3_RO(boost_meas, 6, 2);
+AFE3_RO(i_boost, 6, 3);
+AFE3_RO(i_anode, 6, 4);
+AFE3_RO(v_phase_a, 6, 5);
+AFE3_RO(v_phase_b, 6, 6);
+AFE3_RO(v_t17, 6, 7);
+AFE3_RO(temperature, 6, 10);
+AFE3_RO(pulse_frequency, 6, 21);
+AFE3_RO(pulse_symmetry, 6, 22);
+AFE3_RO(regulator_out, 6, 23);
+AFE3_RO(p_term, 6, 24);
+AFE3_RO(i_term, 6, 25);
+AFE3_RO(dac_boost, 0x20, 0);
+AFE3_RO(dac_drv_bias_fine, 0x20, 1);
+AFE3_RO(dac_drv_bias, 0x20, 2);
+AFE3_RO(dac_amp_offset, 0x20, 3);
+
+static struct attribute *afe_group_attrs[] = {
+	&dev_attr_v_dynode.attr,
+	&dev_attr_v_anode.attr,
+	&dev_attr_boost_meas.attr,
+	&dev_attr_i_boost.attr,
+	&dev_attr_i_anode.attr,
+	&dev_attr_v_phase_a.attr,
+	&dev_attr_v_phase_b.attr,
+	&dev_attr_v_t17.attr,
+	&dev_attr_temperature.attr,
+	&dev_attr_pulse_frequency.attr,
+	&dev_attr_pulse_symmetry.attr,
+	&dev_attr_regulator_out.attr,
+	&dev_attr_p_term.attr,
+	&dev_attr_i_term.attr,
+	&dev_attr_dac_boost.attr,
+	&dev_attr_dac_drv_bias_fine.attr,
+	&dev_attr_dac_drv_bias.attr,
+	&dev_attr_dac_amp_offset.attr,
+	NULL,
+};
+
 static const struct attribute_group fpga_group = {
 	.attrs = fpga_attrs,
 	.bin_attrs = fpga_bin_attrs,
@@ -495,9 +506,15 @@ static const struct attribute_group signal_processing_group = {
 	.name = "signal_processing"
 };
 
+static const struct attribute_group afe_group = {
+	.attrs = afe_group_attrs,
+	.name = "afe"
+};
+
 const struct attribute_group *fpga_attribute_groups[] = {
 	&fpga_group,
 	&signal_processing_group,
+	&afe_group,
 	NULL,
 };
 
