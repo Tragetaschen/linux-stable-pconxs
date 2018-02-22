@@ -172,16 +172,12 @@ static void fpga_free_buffers(struct fpga_dev *dev)
 static irqreturn_t handle_data_msi(int irq, void *data)
 {
 	struct fpga_dev *fpga_dev = data;
-	int to_add = 0;
-	int add_result;
+	int to_add;
 	int *counts_buffer = (int*)fpga_dev->counts.start;
 	u32 position = fpga_dev->counts_position;
 
-	while ((add_result = counts_buffer[position]) >= 0) {
-		counts_buffer[position] = -1;
-		to_add += add_result;
-		position = (position + 1) & 16383;
-	}
+	to_add = counts_buffer[position];
+	position = (position + 1) & 16383;
 	fpga_dev->counts_position = position;
 
 	atomic_add_return(to_add, &fpga_dev->unread_data_items);
