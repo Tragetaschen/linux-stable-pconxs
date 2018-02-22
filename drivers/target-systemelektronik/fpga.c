@@ -177,13 +177,10 @@ static irqreturn_t handle_data_msi(int irq, void *data)
 	int *counts_buffer = (int*)fpga_dev->counts.start;
 	u32 position = fpga_dev->counts_position;
 
-	fpga_dev->number_of_interrupts++;
-
 	while ((add_result = counts_buffer[position]) >= 0) {
 		counts_buffer[position] = -1;
 		to_add += add_result;
 		position = (position + 1) & 16383;
-		fpga_dev->number_of_lengths++;
 	}
 	fpga_dev->counts_position = position;
 
@@ -376,8 +373,6 @@ static int fpga_driver_probe(struct pci_dev *dev,
 	fpga_dev->counts_position = 0;
 	fpga_dev->counts.size = 16 * PAGE_SIZE;
 	init_completion(&fpga_dev->data_has_arrived);
-	fpga_dev->number_of_interrupts = 0;
-	fpga_dev->number_of_lengths = 0;
 	fpga_dev->ram_base_data = 0;
 	fpga_dev->ram_base_counts = 0;
 

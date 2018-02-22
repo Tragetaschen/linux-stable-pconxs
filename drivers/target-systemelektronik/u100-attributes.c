@@ -165,7 +165,6 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_dac6.attr,
 	&dev_attr_dac7.attr,
 
-	&dev_attr_interrupt_info.attr,
 	&dev_attr_ram_base_data.attr,
 	&dev_attr_ram_base_counts.attr,
 	NULL,

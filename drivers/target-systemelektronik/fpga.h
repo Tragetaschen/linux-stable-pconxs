@@ -26,8 +26,6 @@ struct fpga_dev {
 	struct cdev cdev;
 	struct device *device;
 	struct completion data_has_arrived;
-	int number_of_interrupts;
-	int number_of_lengths;
 
 	u64 ram_base_data;
 	u64 ram_base_counts;

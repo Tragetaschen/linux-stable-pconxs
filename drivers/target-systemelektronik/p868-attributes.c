@@ -327,7 +327,6 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_baseline_variance_second.attr,
 	&dev_attr_baseline_variance_reset.attr,
 
-	&dev_attr_interrupt_info.attr,
 	&dev_attr_ram_base_data.attr,
 	&dev_attr_ram_base_counts.attr,
 	NULL,
