@@ -291,59 +291,6 @@ static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 	return sizeof(int) + sizeof(int);
 }
 
-struct coaligned_arrays {
-	int number_of_items;
-	int offset;
-	float *energies;
-	float *head_energies;
-	u64 *real_times;
-	u64 *live_times;
-};
-
-struct fpga_event
-{
-	u64 real_time;
-	u64 live_time;
-	int _1[2];
-	float head_area;
-	float full_area;
-	int _2[8];
-};
-
-#define FPGA_COPY_EVENTS _IOWR(0xF0, 1, struct coaligned_arrays)
-
-static long fpga_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	struct coaligned_arrays arrays;
-	struct fpga_dev *fpga_dev = filp->private_data;
-	struct fpga_event *ringbuffer = fpga_dev->data.start;
-
-	if (cmd != FPGA_COPY_EVENTS)
-		return -ENOTTY;
-
-	if (copy_from_user(&arrays, (void __user *)arg, sizeof(struct coaligned_arrays)))
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE, arrays.energies, arrays.number_of_items * sizeof(float)))
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE, arrays.head_energies, arrays.number_of_items * sizeof(float)))
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE, arrays.real_times, arrays.number_of_items * sizeof(u64)))
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE, arrays.live_times, arrays.number_of_items * sizeof(u64)))
-		return -EFAULT;
-
-	ringbuffer += arrays.offset;
-	while (arrays.number_of_items--)
-	{
-		__put_user(ringbuffer->full_area, arrays.energies++);
-		__put_user(ringbuffer->head_area, arrays.head_energies++);
-		__put_user(ringbuffer->real_time, arrays.real_times++);
-		__put_user(ringbuffer->live_time, arrays.live_times++);
-		++ringbuffer;
-	}
-	return 0;
-}
-
 static const struct file_operations fpga_cdev_ops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -351,7 +298,6 @@ static const struct file_operations fpga_cdev_ops = {
 	.release	= fpga_cdev_release,
 	.read		= fpga_cdev_read,
 	.mmap		= fpga_cdev_mmap,
-	.unlocked_ioctl	= fpga_cdev_ioctl,
 };
 
 static int fpga_driver_probe(struct pci_dev *dev,
