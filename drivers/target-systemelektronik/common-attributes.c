@@ -153,16 +153,6 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 	return count;
 }
 
-static ssize_t interrupt_info_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%d %d %d\n",
-		fpga_dev->number_of_interrupts,
-		fpga_dev->number_of_lengths,
-		fpga_dev->number_of_lengths - fpga_dev->number_of_interrupts);
-}
-
 static ssize_t ram_base_data_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
@@ -188,6 +178,5 @@ VALUE_RW(acq, FPGA_ACQ, "%d");
 VALUE_RW(pause, FPGA_PAUSE, "%d");
 VALUE64_RO(resolution, FPGA_RESOLUTION);
 
-DEVICE_ATTR_RO(interrupt_info);
 DEVICE_ATTR_RO(ram_base_data);
 DEVICE_ATTR_RO(ram_base_counts);
