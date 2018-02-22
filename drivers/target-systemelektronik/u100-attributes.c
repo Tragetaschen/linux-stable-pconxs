@@ -54,6 +54,7 @@
 #define FPGA_SYNC		(FPGA_STREAM_BASE + 0x0c)
 #define FPGA_PAUSE		(FPGA_STREAM_BASE + 0x10)
 #define FPGA_RESOLUTION		(FPGA_STREAM_BASE + 0x14)
+#define FPGA_EFFICIENCY_CUT	(FPGA_STREAM_BASE + 0x1c)
 
 #define FPGA_AFE_COMMAND	(FPGA_AFE_BASE + 0x00)
 #define FPGA_AFE_ON		(FPGA_AFE_BASE + 0x04)
@@ -289,6 +290,7 @@ VALUE_RW(acq, FPGA_ACQ, "%d");
 VALUE_WO(sync, FPGA_SYNC);
 VALUE_RW(pause, FPGA_PAUSE, "%d");
 VALUE64_RO(resolution, FPGA_RESOLUTION);
+VALUE_RW(efficiency_cut, FPGA_EFFICIENCY_CUT, "0x%x");
 DEVICE_ATTR_RW(afe_on);
 DEVICE_ATTR_RW(hv);
 DEVICE_ATTR(dac1, S_IWUSR | S_IRUGO, dac_show, dac_store);
@@ -320,6 +322,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_sync.attr,
 	&dev_attr_pause.attr,
 	&dev_attr_resolution.attr,
+	&dev_attr_efficiency_cut.attr,
 	&dev_attr_afe_on.attr,
 	&dev_attr_hv.attr,
 	&dev_attr_dac1.attr,
