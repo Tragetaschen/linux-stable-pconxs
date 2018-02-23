@@ -188,30 +188,37 @@ static irqreturn_t handle_data_msi(int irq, void *data)
 
 static int fpga_setup_irq(struct fpga_dev *fpga_dev)
 {
+	struct pci_dev *pdev = fpga_dev->pci_dev;
 	int irq;
 	int ret;
 
-	ret = pci_enable_msi_exact(fpga_dev->pci_dev, 1);
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (ret < 0) {
-		dev_err(&fpga_dev->pci_dev->dev, "Could not request msi\n");
+		dev_err(&pdev->dev, "Could not request MSI\n");
 		return ret;
 	}
-	dev_info(&fpga_dev->pci_dev->dev, "Enabled %d interrupts\n", 1);
-	irq = fpga_dev->pci_dev->irq;
-	ret = devm_request_irq(&fpga_dev->pci_dev->dev, irq, handle_data_msi,
+	dev_info(&pdev->dev, "Enabled %d interrupts\n", ret);
+
+	irq = pci_irq_vector(pdev, 0);
+	ret = devm_request_irq(&pdev->dev, irq, handle_data_msi,
 			       0, "fpga-data", fpga_dev);
 	if (ret) {
-		dev_err(&fpga_dev->pci_dev->dev, "Failed to request irq %d\n", irq);
+		dev_err(&pdev->dev, "Failed to request irq %d\n", irq);
 		return ret;
 	}
+
 	return 0;
 }
 
 static void fpga_teardown_irq(struct fpga_dev *fpga_dev)
 {
-	int irq = fpga_dev->pci_dev->irq;
-	devm_free_irq(&fpga_dev->pci_dev->dev, irq, fpga_dev);
-	pci_disable_msi(fpga_dev->pci_dev);
+	struct pci_dev *pdev = fpga_dev->pci_dev;
+	int irq;
+
+	irq = pci_irq_vector(pdev, 0);
+	devm_free_irq(&pdev->dev, irq, fpga_dev);
+
+	pci_free_irq_vectors(pdev);
 }
 
 void bar_write(struct device *dev, u32 value, int offset)
