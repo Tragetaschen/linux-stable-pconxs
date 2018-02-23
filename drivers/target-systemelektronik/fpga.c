@@ -169,7 +169,7 @@ static void fpga_free_buffers(struct fpga_dev *dev)
 	_fpga_free_buffer(dev->pci_dev, &dev->counts);
 }
 
-static irqreturn_t handle_data_msi(int irq, void *data)
+static irqreturn_t handle_msi(int irq, void *data)
 {
 	struct fpga_dev *fpga_dev = data;
 	int to_add;
@@ -181,6 +181,10 @@ static irqreturn_t handle_data_msi(int irq, void *data)
 	fpga_dev->counts_position = position;
 
 	atomic_add_return(to_add, &fpga_dev->unread_data_items);
+
+	if (irq == fpga_dev->timestamp_irq)
+		fpga_dev->timestamp_reset = 1;
+
 	complete(&fpga_dev->data_has_arrived);
 
 	return IRQ_HANDLED;
@@ -192,7 +196,7 @@ static int fpga_setup_irq(struct fpga_dev *fpga_dev)
 	int irq;
 	int ret;
 
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	ret = pci_alloc_irq_vectors(pdev, 2, 2, PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not request MSI\n");
 		return ret;
@@ -200,8 +204,17 @@ static int fpga_setup_irq(struct fpga_dev *fpga_dev)
 	dev_info(&pdev->dev, "Enabled %d interrupts\n", ret);
 
 	irq = pci_irq_vector(pdev, 0);
-	ret = devm_request_irq(&pdev->dev, irq, handle_data_msi,
+	ret = devm_request_irq(&pdev->dev, irq, handle_msi,
 			       0, "fpga-data", fpga_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to request irq %d\n", irq);
+		return ret;
+	}
+
+	irq = pci_irq_vector(pdev, 1);
+	fpga_dev->timestamp_irq = irq;
+	ret = devm_request_irq(&pdev->dev, irq, handle_msi,
+			       0, "fpga-timestamp", fpga_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %d\n", irq);
 		return ret;
@@ -215,6 +228,8 @@ static void fpga_teardown_irq(struct fpga_dev *fpga_dev)
 	struct pci_dev *pdev = fpga_dev->pci_dev;
 	int irq;
 
+	irq = pci_irq_vector(pdev, 1);
+	devm_free_irq(&pdev->dev, irq, fpga_dev);
 	irq = pci_irq_vector(pdev, 0);
 	devm_free_irq(&pdev->dev, irq, fpga_dev);
 
@@ -277,11 +292,17 @@ static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 
 	bytes_to_read = atomic_xchg(&fpga_dev->unread_data_items, 0);
 
-	if (bytes_to_read == 0)
-		return -ETIME;
-
 	from_position = fpga_dev->unsent_start;
 	fpga_dev->unsent_start = (from_position + bytes_to_read) & (fpga_dev->data.size - 1);
+
+	if (fpga_dev->timestamp_reset)
+	{
+		fpga_dev->timestamp_reset = 0;
+		return -ECANCELED;
+	}
+
+	if (bytes_to_read == 0)
+		return -ETIME;
 
 	if (copy_to_user(buf, &from_position, sizeof(int)))
 		return -EINVAL;
@@ -324,6 +345,7 @@ static int fpga_driver_probe(struct pci_dev *dev,
 	init_completion(&fpga_dev->data_has_arrived);
 	fpga_dev->ram_base_data = 0;
 	fpga_dev->ram_base_counts = 0;
+	fpga_dev->timestamp_reset = 0;
 
 	pci_set_drvdata(dev, fpga_dev);
 

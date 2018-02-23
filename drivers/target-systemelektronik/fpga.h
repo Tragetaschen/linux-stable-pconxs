@@ -29,6 +29,9 @@ struct fpga_dev {
 
 	u64 ram_base_data;
 	u64 ram_base_counts;
+
+	u32 timestamp_reset;
+	int timestamp_irq;
 };
 
 void bar_write(struct device *dev, u32 value, int offset);
