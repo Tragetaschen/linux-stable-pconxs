@@ -149,6 +149,7 @@
 			label = "p868:none:bluetooth";
 			gpios = <&gpio4 8 0>;
 			default-state = "off";
+			retain-state-suspended;
 		};
 	};
 
