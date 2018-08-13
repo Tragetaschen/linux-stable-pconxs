@@ -102,6 +102,13 @@
 			linux,code = <BTN_1>;
 			wakeup-source;
 		};
+
+		bt-host-wakeup {
+			label = "BT_HOST_WAKEUP";
+			gpios = <&gpio4 11 GPIO_ACTIVE_HIGH>;
+			linux,code = <BTN_2>;
+			wakeup-source;
+		};
 	};
 
 	leds {
@@ -150,6 +157,12 @@
 			gpios = <&gpio4 8 0>;
 			default-state = "off";
 			retain-state-suspended;
+		};
+
+		bluetooth-wake {
+			label = "p868:none:bluetooth-wake";
+			gpios = <&gpio4 10 0>;
+			default-state = "on";
 		};
 	};
 
