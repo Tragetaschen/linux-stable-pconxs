@@ -152,40 +152,65 @@ DEVICE_ATTR_RW(name)
 static ssize_t config_write(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer, loff_t offset, size_t count)
 {
 	u32 *data;
+	int written = 0;
 	struct device *dev = kobj_to_dev(kobj);
 
-	if (count != 4)
-		return -EINVAL;
 	if (offset & 0x3)
 		return -EINVAL;
 	if (offset >= 1024)
 		return -EINVAL;
+	if (count & 0x3)
+		return -EINVAL;
+	if (count >= 1024)
+		return -EINVAL;
+	if (offset + count >= 1024)
+		return -EINVAL;
 
 	data = (u32*)(void*)buffer;
-	afe3_write(dev, 4, offset >> 2, *data);
+	while (count > 0)
+	{
+		afe3_write(dev, 4, offset >> 2, *data);
+		offset +=4;
+		data += 1;
+		count -= 4;
+		written += 4;
+	}
 
-	return count;
+	return written;
 }
 
 static ssize_t config_read(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char* buffer, loff_t offset, size_t count)
 {
 	u32 *data;
 	int ret;
+	int read = 0;
 	struct device *dev = kobj_to_dev(kobj);
 
-	if (count != 4)
-		return -EINVAL;
+
 	if (offset & 0x3)
 		return -EINVAL;
 	if (offset >= 1024)
 		return -EINVAL;
+	if (count & 0x3)
+		return -EINVAL;
+	if (count >= 1024)
+		return -EINVAL;
+	if (offset + count >= 1024)
+		return -EINVAL;
 
-	data = (void*)buffer;
-	ret = afe3_read(dev, 5, offset >> 2, data);
-	if (ret < 0)
-		return ret;
+	data = (u32*)(void*)buffer;
+	while (count > 0)
+	{
+		ret = afe3_read(dev, 5, offset >> 2, data);
+		if (ret < 0)
+			return ret;
+		offset += 4;
+		data += 1;
+		count -= 4;
+		read += 4;
+	}
 
-	return count;
+	return read;
 }
 
 static ssize_t coefficients_show(struct device *dev, struct device_attribute *attr, char *buf)
