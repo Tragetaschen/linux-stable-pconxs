@@ -13,7 +13,8 @@ struct fpga_ringbuffer {
 };
 
 struct fpga_dev {
-	struct pci_dev *pci_dev;
+	struct pci_dev *pdev;
+	void __iomem *bar;
 
 	struct fpga_ringbuffer data;
 	struct fpga_ringbuffer counts;

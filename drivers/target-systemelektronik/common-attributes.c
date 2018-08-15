@@ -155,14 +155,14 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 
 static ssize_t ram_base_data_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
-	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fpga_dev->ram_base_data);
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fdev->ram_base_data);
 }
 
 static ssize_t ram_base_counts_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct fpga_dev *fpga_dev = dev_get_drvdata(dev);
-	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fpga_dev->ram_base_counts);
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
+	return scnprintf(buf, PAGE_SIZE, "0x%016llX\n", fdev->ram_base_counts);
 }
 
 VALUE64_RO(ext_freq, FPGA_EXT_FREQ);
