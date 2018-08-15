@@ -18,6 +18,9 @@
  *
  *****************************************************************************/
 
+#include <linux/uaccess.h>
+#include <linux/pci.h>
+
 #include "common-attributes.c"
 
 #define FPGA_AFE3_BASE		0x700
@@ -313,14 +316,6 @@ static ssize_t bit_shifts_store(struct device *dev, struct device_attribute *att
 	return count;
 }
 
-AFE3_RW(hv, 3, 2, 0);
-AFE3_RW(baseline, 8, 7, 0);
-BIN_ATTR_RW(config, 0);
-AFE3_RW(config0, 5, 4, 0);
-AFE3_RW(config1, 5, 4, 1);
-AFE3_RW(config2, 5, 4, 2);
-AFE3_RW(config3, 5, 4, 3);
-
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
 VALUE_RW(trigger_pause, FPGA_TRIGGER_PAUSE, "%d");
 VALUE_RO(baseline_variance_first, FPGA_VARIANCE_FIRST, "%d");
@@ -328,13 +323,6 @@ VALUE_RO(baseline_variance_second, FPGA_VARIANCE_SECOND, "%d");
 VALUE_WO(baseline_variance_reset, FPGA_VARIANCE_FIRST);
 
 static struct attribute *fpga_attrs[] = {
-	&dev_attr_hv.attr,
-	&dev_attr_baseline.attr,
-	&dev_attr_config0.attr,
-	&dev_attr_config1.attr,
-	&dev_attr_config2.attr,
-	&dev_attr_config3.attr,
-
 	&dev_attr_ext_freq.attr,
 	&dev_attr_pll_mult.attr,
 	&dev_attr_build_time.attr,
@@ -358,7 +346,6 @@ static struct attribute *fpga_attrs[] = {
 };
 
 static struct bin_attribute *fpga_bin_attrs[] = {
-	&bin_attr_config,
 	&bin_attr_firmware,
 	NULL,
 };
@@ -417,6 +404,14 @@ static struct attribute *signal_processing_group_attrs[] = {
 	NULL,
 };
 
+AFE3_RW(hv, 3, 2, 0);
+AFE3_RW(baseline, 8, 7, 0);
+BIN_ATTR_RW(config, 0);
+AFE3_RW(config0, 5, 4, 0);
+AFE3_RW(config1, 5, 4, 1);
+AFE3_RW(config2, 5, 4, 2);
+AFE3_RW(config3, 5, 4, 3);
+
 AFE3_RO(v_dynode, 6, 0);
 AFE3_RO(v_anode, 6, 1);
 AFE3_RO(boost_meas, 6, 2);
@@ -437,6 +432,13 @@ AFE3_RO(dac_drv_bias, 0x20, 2);
 AFE3_RO(dac_amp_offset, 0x20, 3);
 
 static struct attribute *afe_group_attrs[] = {
+	&dev_attr_hv.attr,
+	&dev_attr_baseline.attr,
+	&dev_attr_config0.attr,
+	&dev_attr_config1.attr,
+	&dev_attr_config2.attr,
+	&dev_attr_config3.attr,
+
 	&dev_attr_v_dynode.attr,
 	&dev_attr_v_anode.attr,
 	&dev_attr_boost_meas.attr,
@@ -455,6 +457,11 @@ static struct attribute *afe_group_attrs[] = {
 	&dev_attr_dac_drv_bias_fine.attr,
 	&dev_attr_dac_drv_bias.attr,
 	&dev_attr_dac_amp_offset.attr,
+	NULL,
+};
+
+static struct bin_attribute *afe_bin_attrs[] = {
+	&bin_attr_config,
 	NULL,
 };
 
@@ -487,11 +494,6 @@ static const struct attribute_group signal_processing_group = {
 	.name = "signal_processing"
 };
 
-static const struct attribute_group afe_group = {
-	.attrs = afe_group_attrs,
-	.name = "afe"
-};
-
 static const struct attribute_group dose_rate_group = {
 	.attrs = dose_rate_group_attrs,
 	.name = "dose_rate"
@@ -500,8 +502,97 @@ static const struct attribute_group dose_rate_group = {
 const struct attribute_group *fpga_attribute_groups[] = {
 	&fpga_group,
 	&signal_processing_group,
-	&afe_group,
 	&dose_rate_group,
 	NULL,
 };
+
+static const struct attribute_group afe_group = {
+	.attrs = afe_group_attrs,
+	.bin_attrs = afe_bin_attrs,
+};
+
+const struct attribute_group *afe_attribute_groups[] = {
+	&afe_group,
+	NULL,
+};
+
+struct p868_dev {
+	struct fpga_dev *fdev;
+	dev_t devt;
+	struct cdev cdev;
+	struct device *device;
+	int data;
+};
+
+static int afe_cdev_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = container_of(inode->i_cdev, struct p868_dev, cdev);
+
+	return nonseekable_open(inode, filp);
+}
+
+static int afe_cdev_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static ssize_t afe_cdev_read(struct file *filp, char __user *buf,
+			     size_t size, loff_t *offset)
+{
+	struct p868_dev *p868dev = filp->private_data;
+
+	if (copy_to_user(buf, &p868dev->data, sizeof(int)))
+		return -EINVAL;
+
+	return sizeof(int);
+}
+
+static const struct file_operations afe_cdev_ops = {
+	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
+	.open		= afe_cdev_open,
+	.release	= afe_cdev_release,
+	.read		= afe_cdev_read,
+};
+
+int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class)
+{
+	struct p868_dev *p868dev;
+	int ret;
+
+	p868dev = devm_kzalloc(&fdev->pdev->dev, sizeof(struct p868_dev), GFP_KERNEL);
+	if (!p868dev)
+		return -ENOMEM;
+	fdev->platform_device = p868dev;
+	p868dev->fdev = fdev;
+	p868dev->data = 0xefbeadde;
+
+	p868dev->devt = MKDEV(MAJOR(fpga_devt), 1);
+	cdev_init(&p868dev->cdev, &afe_cdev_ops);
+	ret = cdev_add(&p868dev->cdev, p868dev->devt, 1);
+	if (ret)
+		return ret;
+
+	p868dev->device = device_create_with_groups(device_class, &fdev->pdev->dev,
+		p868dev->devt, fdev, afe_attribute_groups, "target-afe");
+	if (IS_ERR(p868dev->device)) {
+		ret = PTR_ERR(p868dev->device);
+		printk(KERN_WARNING "Error %d while trying to create target-afe", ret);
+		goto err_device;
+	}
+
+	return 0;
+
+err_device:
+	cdev_del(&p868dev->cdev);
+	return ret;
+}
+
+void target_fpga_platform_driver_remove(struct fpga_dev *fdev, struct class *device_class)
+{
+	struct p868_dev *p868dev;
+	p868dev = fdev->platform_device;
+	device_destroy(device_class, p868dev->devt);
+	cdev_del(&p868dev->cdev);
+}
 

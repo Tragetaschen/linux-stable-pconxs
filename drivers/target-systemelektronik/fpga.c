@@ -384,15 +384,22 @@ static int fpga_driver_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_cdev;
 
-	fdev->device = device_create(device_class, &pdev->dev, fdev->dev, fdev, "target-fpga");
+	fdev->device = device_create_with_groups(device_class, &pdev->dev,
+		fdev->dev, fdev, fpga_attribute_groups, "target-fpga");
 	if (IS_ERR(fdev->device)) {
 		ret = PTR_ERR(fdev->device);
 		printk(KERN_WARNING "Error %d while trying to create target-fpga", ret);
 		goto err_device;
 	}
 
+	ret = target_fpga_platform_driver_probe(fdev, fpga_devt, device_class);
+	if (ret)
+		goto err_plat;
+
 	return 0;
 
+err_plat:
+	device_destroy(device_class, fdev->dev);
 err_device:
 	cdev_del(&fdev->cdev);
 err_cdev:
@@ -406,8 +413,9 @@ err_managed:
 static void fpga_driver_remove(struct pci_dev *pdev)
 {
 	struct fpga_dev *fdev;
-
 	fdev = pci_get_drvdata(pdev);
+
+	target_fpga_platform_driver_remove(fdev, device_class);
 	device_destroy(device_class, fdev->dev);
 	cdev_del(&fdev->cdev);
 
@@ -489,7 +497,7 @@ static int __init fpga_driver_init(void)
 {
 	int ret;
 
-	ret = alloc_chrdev_region(&fpga_devt, 0, 1, TARGET_FPGA_DRIVER_NAME);
+	ret = alloc_chrdev_region(&fpga_devt, 0, 2, TARGET_FPGA_DRIVER_NAME);
 	if (ret)
 		goto exit;
 
@@ -498,7 +506,6 @@ static int __init fpga_driver_init(void)
 		ret = PTR_ERR(device_class);
 		goto err_class;
 	}
-	device_class->dev_groups = fpga_attribute_groups;
 
 	ret = pci_register_driver(&fpga_driver);
 	if (ret) {
@@ -510,7 +517,7 @@ static int __init fpga_driver_init(void)
 err_driver:
 	class_destroy(device_class);
 err_class:
-	unregister_chrdev_region(fpga_devt, 1);
+	unregister_chrdev_region(fpga_devt, 2);
 exit:
 	return ret;
 }
@@ -519,7 +526,7 @@ static void __exit fpga_driver_exit(void)
 {
 	pci_unregister_driver(&fpga_driver);
 	class_destroy(device_class);
-	unregister_chrdev_region(fpga_devt, 1);
+	unregister_chrdev_region(fpga_devt, 2);
 }
 
 module_init(fpga_driver_init);

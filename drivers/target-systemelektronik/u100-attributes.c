@@ -186,3 +186,12 @@ const struct attribute_group *fpga_attribute_groups[] = {
 	NULL,
 };
 
+int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class)
+{
+	return 0;
+}
+
+void target_fpga_platform_driver_remove(struct fpga_dev *fdev, struct class *device_class)
+{
+}
+

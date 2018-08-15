@@ -33,10 +33,15 @@ struct fpga_dev {
 
 	u32 timestamp_reset;
 	int timestamp_irq;
+
+	void* platform_device;
 };
 
 void bar_write(struct device *dev, u32 value, int offset);
 u32 bar_read(struct device *dev, int offset);
 extern const struct attribute_group *fpga_attribute_groups[];
+
+int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class);
+void target_fpga_platform_driver_remove(struct fpga_dev *fdev, struct class *device_class);
 
 #endif
