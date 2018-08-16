@@ -20,6 +20,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/pci.h>
+#include <linux/workqueue.h>
 
 #include "common-attributes.c"
 
@@ -524,12 +525,46 @@ struct p868_dev {
 	dev_t devt;
 	struct cdev cdev;
 	struct device *device;
+	struct workqueue_struct *workqueue;
+	int afe_status;
 	char data[AFE_CONFIG_SIZE];
 };
 
+struct afe_init_work {
+	struct p868_dev *p868dev;
+	struct work_struct work;
+};
+
+static void do_afe_init(struct work_struct *work)
+{
+	struct afe_init_work *afe_init = container_of(work, struct afe_init_work, work);
+	struct p868_dev *p868dev = afe_init->p868dev;
+	struct device *dev = &p868dev->fdev->pdev->dev;
+	u32* data = (u32*)p868dev->data;
+	int ret, i;
+
+	kfree(afe_init);
+	for (i=0; i<AFE_CONFIG_SIZE>>2; ++i)
+	{
+		ret = afe3_read(dev, 5, i, data + i);
+		if (ret != 0)
+		{
+			p868dev->afe_status = ret;
+			return;
+		}
+	}
+	p868dev->afe_status = 1;
+}
+
 static int afe_cdev_open(struct inode *inode, struct file *file)
 {
-	file->private_data = container_of(inode->i_cdev, struct p868_dev, cdev);
+	struct p868_dev *p868dev = container_of(inode->i_cdev, struct p868_dev, cdev);
+	if (p868dev->afe_status == 0)
+		return -EBUSY;
+	if (p868dev->afe_status < 0)
+		return p868dev->afe_status;
+
+	file->private_data = p868dev;
 
 	return generic_file_open(inode, file);
 }
@@ -600,6 +635,7 @@ static const struct file_operations afe_cdev_ops = {
 int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class)
 {
 	struct p868_dev *p868dev;
+	struct afe_init_work *afe_init;
 	int ret;
 
 	p868dev = devm_kzalloc(&fdev->pdev->dev, sizeof(struct p868_dev), GFP_KERNEL);
@@ -607,12 +643,15 @@ int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, st
 		return -ENOMEM;
 	fdev->platform_device = p868dev;
 	p868dev->fdev = fdev;
+	p868dev->workqueue = create_singlethread_workqueue("AFE sync");
+	if (!p868dev->workqueue)
+		return -ENOMEM;
 
 	p868dev->devt = MKDEV(MAJOR(fpga_devt), 1);
 	cdev_init(&p868dev->cdev, &afe_cdev_ops);
 	ret = cdev_add(&p868dev->cdev, p868dev->devt, 1);
 	if (ret)
-		return ret;
+		goto err_cdev;
 
 	p868dev->device = device_create_with_groups(device_class, &fdev->pdev->dev,
 		p868dev->devt, fdev, afe_attribute_groups, "target-afe");
@@ -622,10 +661,24 @@ int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, st
 		goto err_device;
 	}
 
+	afe_init = kzalloc(sizeof(struct afe_init_work), GFP_KERNEL);
+	if (!afe_init)
+	{
+		ret = -ENOMEM;
+		goto err_work;
+	}
+	afe_init->p868dev = p868dev;
+	INIT_WORK(&afe_init->work, do_afe_init);
+	queue_work(p868dev->workqueue, &afe_init->work);
+
 	return 0;
 
+err_work:
+	device_destroy(device_class, p868dev->devt);
 err_device:
 	cdev_del(&p868dev->cdev);
+err_cdev:
+	destroy_workqueue(p868dev->workqueue);
 	return ret;
 }
 
