@@ -516,43 +516,84 @@ const struct attribute_group *afe_attribute_groups[] = {
 	NULL,
 };
 
+#define AFE_CONFIG_SIZE 1024
+
 struct p868_dev {
 	struct fpga_dev *fdev;
 	dev_t devt;
 	struct cdev cdev;
 	struct device *device;
-	int data;
+	char data[AFE_CONFIG_SIZE];
 };
 
-static int afe_cdev_open(struct inode *inode, struct file *filp)
+static int afe_cdev_open(struct inode *inode, struct file *file)
 {
-	filp->private_data = container_of(inode->i_cdev, struct p868_dev, cdev);
+	file->private_data = container_of(inode->i_cdev, struct p868_dev, cdev);
 
-	return nonseekable_open(inode, filp);
+	return generic_file_open(inode, file);
 }
 
-static int afe_cdev_release(struct inode *inode, struct file *filp)
+static int afe_cdev_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-static ssize_t afe_cdev_read(struct file *filp, char __user *buf,
+static ssize_t afe_cdev_read(struct file *file, char __user *buf,
 			     size_t size, loff_t *offset)
 {
-	struct p868_dev *p868dev = filp->private_data;
+	struct p868_dev *p868dev = file->private_data;
+	size_t actual_size;
+	char* data_start;
 
-	if (copy_to_user(buf, &p868dev->data, sizeof(int)))
-		return -EINVAL;
+	if (*offset >= AFE_CONFIG_SIZE)
+		return 0;
 
-	return sizeof(int);
+	data_start = p868dev->data + *offset;
+	actual_size = size;
+	if (*offset + size >= AFE_CONFIG_SIZE)
+		actual_size = AFE_CONFIG_SIZE - *offset;
+
+	if (copy_to_user(buf, data_start, actual_size))
+		return -EFAULT;
+
+	*offset += actual_size;
+	return actual_size;
+}
+
+static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
+			      size_t size, loff_t *offset)
+{
+	struct p868_dev *p868dev = file->private_data;
+	size_t actual_size;
+	char* data_start;
+
+	if (*offset >= AFE_CONFIG_SIZE)
+		return 0;
+
+	data_start = p868dev->data + *offset;
+	actual_size = size;
+	if (*offset + size >= AFE_CONFIG_SIZE)
+		actual_size = AFE_CONFIG_SIZE - *offset;
+
+	if (copy_from_user(data_start, buf, actual_size))
+		return -EFAULT;
+
+	*offset += actual_size;
+	return actual_size;
+}
+
+static loff_t afe_cdev_llseek(struct file *file, loff_t offset, int origin)
+{
+	return generic_file_llseek_size(file, offset, origin, AFE_CONFIG_SIZE, AFE_CONFIG_SIZE);
 }
 
 static const struct file_operations afe_cdev_ops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.open		= afe_cdev_open,
 	.release	= afe_cdev_release,
 	.read		= afe_cdev_read,
+	.write		= afe_cdev_write,
+	.llseek		= afe_cdev_llseek,
 };
 
 int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class)
@@ -565,7 +606,6 @@ int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, st
 		return -ENOMEM;
 	fdev->platform_device = p868dev;
 	p868dev->fdev = fdev;
-	p868dev->data = 0xefbeadde;
 
 	p868dev->devt = MKDEV(MAJOR(fpga_devt), 1);
 	cdev_init(&p868dev->cdev, &afe_cdev_ops);
