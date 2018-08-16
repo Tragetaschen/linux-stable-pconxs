@@ -50,6 +50,8 @@
 #define FPGA_DOSE_RATE_MAX_ENERGY	(FPGA_DOSE_RATE_BASE + 0x44)
 #define FPGA_DOSE_RATE_BIT_SHIFTS	(FPGA_DOSE_RATE_BASE + 0x48)
 
+#define AFE_CONFIG_SIZE 1024
+
 static void afe3_write(struct device *dev, u32 cmd, u32 index, u32 data)
 {
 	bar_write(dev, cmd << 8 | index, FPGA_AFE3_COMMAND);
@@ -160,13 +162,13 @@ static ssize_t config_write(struct file *filep, struct kobject *kobj, struct bin
 
 	if (offset & 0x3)
 		return -EINVAL;
-	if (offset >= 1024)
+	if (offset >= AFE_CONFIG_SIZE)
 		return -EINVAL;
 	if (count & 0x3)
 		return -EINVAL;
-	if (count >= 1024)
+	if (count >= AFE_CONFIG_SIZE)
 		return -EINVAL;
-	if (offset + count >= 1024)
+	if (offset + count > AFE_CONFIG_SIZE)
 		return -EINVAL;
 
 	data = (u32*)(void*)buffer;
@@ -192,13 +194,13 @@ static ssize_t config_read(struct file *filep, struct kobject *kobj, struct bin_
 
 	if (offset & 0x3)
 		return -EINVAL;
-	if (offset >= 1024)
+	if (offset >= AFE_CONFIG_SIZE)
 		return -EINVAL;
 	if (count & 0x3)
 		return -EINVAL;
-	if (count >= 1024)
+	if (count >= AFE_CONFIG_SIZE)
 		return -EINVAL;
-	if (offset + count >= 1024)
+	if (offset + count > AFE_CONFIG_SIZE)
 		return -EINVAL;
 
 	data = (u32*)(void*)buffer;
@@ -516,7 +518,6 @@ const struct attribute_group *afe_attribute_groups[] = {
 	NULL,
 };
 
-#define AFE_CONFIG_SIZE 1024
 
 struct p868_dev {
 	struct fpga_dev *fdev;
