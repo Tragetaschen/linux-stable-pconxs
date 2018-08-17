@@ -586,9 +586,9 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	return actual_size;
 }
 
-static loff_t afe_cdev_llseek(struct file *file, loff_t offset, int origin)
+static loff_t afe_cdev_llseek(struct file *file, loff_t offset, int whence)
 {
-	return generic_file_llseek_size(file, offset, origin, AFE_CONFIG_SIZE, AFE_CONFIG_SIZE);
+	return fixed_size_llseek(file, offset, whence, AFE_CONFIG_SIZE);
 }
 
 static int afe_cdev_fsync(struct file *file, loff_t start, loff_t end, int datasync)
