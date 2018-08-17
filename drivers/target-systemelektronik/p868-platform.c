@@ -472,6 +472,7 @@ static void do_afe_init(struct work_struct *work)
 		ret = afe3_read(dev, 5, i, data + i);
 		if (ret != 0)
 		{
+			dev_err(dev, "AFE initialization failed at index %d: %d", i, ret);
 			adev->afe_status = ret;
 			return;
 		}
