@@ -556,6 +556,36 @@ static void do_afe_init(struct work_struct *work)
 	p868dev->afe_status = 1;
 }
 
+struct afe_sync_work {
+	struct p868_dev *p868dev;
+	struct work_struct work;
+	int offset;
+	int size;
+};
+
+static void do_afe_sync(struct work_struct *work)
+{
+	struct afe_sync_work *afe_sync = container_of(work, struct afe_sync_work,work);
+	struct p868_dev *p868dev = afe_sync->p868dev;
+	struct device *dev = &p868dev->fdev->pdev->dev;
+	int offset = afe_sync->offset;
+	int size = afe_sync->size;
+
+	u32* data = (u32*)p868dev->data;
+	int i;
+
+	kfree(afe_sync);
+
+	size += offset & 0x3;
+	size += 3;
+
+	offset >>= 2;
+	size >>= 2;
+
+	for (i=offset; i<offset+size; ++i)
+		afe3_write(dev, 4, i, data[i]);
+}
+
 static int afe_cdev_open(struct inode *inode, struct file *file)
 {
 	struct p868_dev *p868dev = container_of(inode->i_cdev, struct p868_dev, cdev);
@@ -600,6 +630,7 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 			      size_t size, loff_t *offset)
 {
 	struct p868_dev *p868dev = file->private_data;
+	struct afe_sync_work *afe_sync;
 	size_t actual_size;
 	char* data_start;
 
@@ -611,10 +642,23 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	if (*offset + size >= AFE_CONFIG_SIZE)
 		actual_size = AFE_CONFIG_SIZE - *offset;
 
+	afe_sync = kzalloc(sizeof(struct afe_sync_work), GFP_KERNEL);
+	if (!afe_sync)
+		return -ENOMEM;
+	afe_sync->p868dev = p868dev;
+	INIT_WORK(&afe_sync->work, do_afe_sync);
+	afe_sync->offset = (int)*offset;
+	afe_sync->size = actual_size;
+
 	if (copy_from_user(data_start, buf, actual_size))
+	{
+		kfree(afe_sync);
 		return -EFAULT;
+	}
 
 	*offset += actual_size;
+	queue_work(p868dev->workqueue, &afe_sync->work);
+
 	return actual_size;
 }
 
