@@ -667,6 +667,15 @@ static loff_t afe_cdev_llseek(struct file *file, loff_t offset, int origin)
 	return generic_file_llseek_size(file, offset, origin, AFE_CONFIG_SIZE, AFE_CONFIG_SIZE);
 }
 
+static int afe_cdev_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+{
+	struct p868_dev *p868dev = file->private_data;
+
+	flush_workqueue(p868dev->workqueue);
+
+	return 0;
+}
+
 static const struct file_operations afe_cdev_ops = {
 	.owner		= THIS_MODULE,
 	.open		= afe_cdev_open,
@@ -674,6 +683,7 @@ static const struct file_operations afe_cdev_ops = {
 	.read		= afe_cdev_read,
 	.write		= afe_cdev_write,
 	.llseek		= afe_cdev_llseek,
+	.fsync		= afe_cdev_fsync,
 };
 
 int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class)
