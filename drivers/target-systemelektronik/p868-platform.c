@@ -155,70 +155,6 @@ DEVICE_ATTR_RW(name)
 	} \
 DEVICE_ATTR_RW(name)
 
-static ssize_t config_write(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char *buffer, loff_t offset, size_t count)
-{
-	u32 *data;
-	int written = 0;
-	struct device *dev = kobj_to_dev(kobj);
-
-	if (offset & 0x3)
-		return -EINVAL;
-	if (offset >= AFE_CONFIG_SIZE)
-		return -EINVAL;
-	if (count & 0x3)
-		return -EINVAL;
-	if (count >= AFE_CONFIG_SIZE)
-		return -EINVAL;
-	if (offset + count > AFE_CONFIG_SIZE)
-		return -EINVAL;
-
-	data = (u32*)(void*)buffer;
-	while (count > 0)
-	{
-		afe3_write(dev, 4, offset >> 2, *data);
-		offset +=4;
-		data += 1;
-		count -= 4;
-		written += 4;
-	}
-
-	return written;
-}
-
-static ssize_t config_read(struct file *filep, struct kobject *kobj, struct bin_attribute *bin_attr, char* buffer, loff_t offset, size_t count)
-{
-	u32 *data;
-	int ret;
-	int read = 0;
-	struct device *dev = kobj_to_dev(kobj);
-
-
-	if (offset & 0x3)
-		return -EINVAL;
-	if (offset >= AFE_CONFIG_SIZE)
-		return -EINVAL;
-	if (count & 0x3)
-		return -EINVAL;
-	if (count >= AFE_CONFIG_SIZE)
-		return -EINVAL;
-	if (offset + count > AFE_CONFIG_SIZE)
-		return -EINVAL;
-
-	data = (u32*)(void*)buffer;
-	while (count > 0)
-	{
-		ret = afe3_read(dev, 5, offset >> 2, data);
-		if (ret < 0)
-			return ret;
-		offset += 4;
-		data += 1;
-		count -= 4;
-		read += 4;
-	}
-
-	return read;
-}
-
 static ssize_t coefficients_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int c0, c1;
@@ -409,11 +345,7 @@ static struct attribute *signal_processing_group_attrs[] = {
 
 AFE3_RW(hv, 3, 2, 0);
 AFE3_RW(baseline, 8, 7, 0);
-BIN_ATTR_RW(config, 0);
-AFE3_RW(config0, 5, 4, 0);
-AFE3_RW(config1, 5, 4, 1);
-AFE3_RW(config2, 5, 4, 2);
-AFE3_RW(config3, 5, 4, 3);
+AFE3_RW(config_version, 5, 4, 0);
 
 AFE3_RO(v_dynode, 6, 0);
 AFE3_RO(v_anode, 6, 1);
@@ -437,10 +369,7 @@ AFE3_RO(dac_amp_offset, 0x20, 3);
 static struct attribute *afe_group_attrs[] = {
 	&dev_attr_hv.attr,
 	&dev_attr_baseline.attr,
-	&dev_attr_config0.attr,
-	&dev_attr_config1.attr,
-	&dev_attr_config2.attr,
-	&dev_attr_config3.attr,
+	&dev_attr_config_version.attr,
 
 	&dev_attr_v_dynode.attr,
 	&dev_attr_v_anode.attr,
@@ -460,11 +389,6 @@ static struct attribute *afe_group_attrs[] = {
 	&dev_attr_dac_drv_bias_fine.attr,
 	&dev_attr_dac_drv_bias.attr,
 	&dev_attr_dac_amp_offset.attr,
-	NULL,
-};
-
-static struct bin_attribute *afe_bin_attrs[] = {
-	&bin_attr_config,
 	NULL,
 };
 
@@ -511,7 +435,6 @@ const struct attribute_group *fpga_attribute_groups[] = {
 
 static const struct attribute_group afe_group = {
 	.attrs = afe_group_attrs,
-	.bin_attrs = afe_bin_attrs,
 };
 
 const struct attribute_group *afe_attribute_groups[] = {
