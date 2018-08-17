@@ -58,7 +58,7 @@ static void afe3_write(struct device *dev, u32 cmd, u32 index, u32 data)
 	bar_write(dev, cmd << 8 | index, FPGA_AFE3_COMMAND);
 	bar_write(dev, data, FPGA_AFE3_DATA);
 	// There's currently no way to know when it's done
-	msleep_interruptible(20);
+	msleep_interruptible(25);
 }
 
 static int afe3_read(struct device *dev, u32 cmd, u32 index, u32* data)
@@ -76,7 +76,7 @@ static int afe3_read(struct device *dev, u32 cmd, u32 index, u32* data)
 	do
 	{
 		++attempts;
-		msleep_interruptible(20);
+		msleep_interruptible(25);
 		command = bar_read(dev, FPGA_AFE3_COMMAND);
 	}
 	while (command != expected_value && attempts < max_attempts);
