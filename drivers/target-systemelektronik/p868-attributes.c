@@ -532,12 +532,12 @@ struct p868_dev {
 
 struct afe_init_work {
 	struct p868_dev *p868dev;
-	struct work_struct work;
+	struct delayed_work work;
 };
 
 static void do_afe_init(struct work_struct *work)
 {
-	struct afe_init_work *afe_init = container_of(work, struct afe_init_work, work);
+	struct afe_init_work *afe_init = container_of(work, struct afe_init_work, work.work);
 	struct p868_dev *p868dev = afe_init->p868dev;
 	struct device *dev = &p868dev->fdev->pdev->dev;
 	u32* data = (u32*)p868dev->data;
@@ -712,8 +712,8 @@ int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, st
 		goto err_work;
 	}
 	afe_init->p868dev = p868dev;
-	INIT_WORK(&afe_init->work, do_afe_init);
-	queue_work(p868dev->workqueue, &afe_init->work);
+	INIT_DELAYED_WORK(&afe_init->work, do_afe_init);
+	queue_delayed_work(p868dev->workqueue, &afe_init->work, msecs_to_jiffies(1000));
 
 	return 0;
 
