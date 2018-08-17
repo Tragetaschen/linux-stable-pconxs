@@ -520,7 +520,7 @@ const struct attribute_group *afe_attribute_groups[] = {
 };
 
 
-struct p868_dev {
+struct afe3_dev {
 	struct fpga_dev *fdev;
 	dev_t devt;
 	struct cdev cdev;
@@ -531,16 +531,16 @@ struct p868_dev {
 };
 
 struct afe_init_work {
-	struct p868_dev *p868dev;
+	struct afe3_dev *adev;
 	struct delayed_work work;
 };
 
 static void do_afe_init(struct work_struct *work)
 {
 	struct afe_init_work *afe_init = container_of(work, struct afe_init_work, work.work);
-	struct p868_dev *p868dev = afe_init->p868dev;
-	struct device *dev = &p868dev->fdev->pdev->dev;
-	u32* data = (u32*)p868dev->data;
+	struct afe3_dev *adev = afe_init->adev;
+	struct device *dev = &adev->fdev->pdev->dev;
+	u32* data = (u32*)adev->data;
 	int ret, i;
 
 	kfree(afe_init);
@@ -549,15 +549,15 @@ static void do_afe_init(struct work_struct *work)
 		ret = afe3_read(dev, 5, i, data + i);
 		if (ret != 0)
 		{
-			p868dev->afe_status = ret;
+			adev->afe_status = ret;
 			return;
 		}
 	}
-	p868dev->afe_status = 1;
+	adev->afe_status = 1;
 }
 
 struct afe_sync_work {
-	struct p868_dev *p868dev;
+	struct afe3_dev *adev;
 	struct work_struct work;
 	int offset;
 	int size;
@@ -566,12 +566,12 @@ struct afe_sync_work {
 static void do_afe_sync(struct work_struct *work)
 {
 	struct afe_sync_work *afe_sync = container_of(work, struct afe_sync_work,work);
-	struct p868_dev *p868dev = afe_sync->p868dev;
-	struct device *dev = &p868dev->fdev->pdev->dev;
+	struct afe3_dev *adev = afe_sync->adev;
+	struct device *dev = &adev->fdev->pdev->dev;
 	int offset = afe_sync->offset;
 	int size = afe_sync->size;
 
-	u32* data = (u32*)p868dev->data;
+	u32* data = (u32*)adev->data;
 	int i;
 
 	kfree(afe_sync);
@@ -588,13 +588,13 @@ static void do_afe_sync(struct work_struct *work)
 
 static int afe_cdev_open(struct inode *inode, struct file *file)
 {
-	struct p868_dev *p868dev = container_of(inode->i_cdev, struct p868_dev, cdev);
-	if (p868dev->afe_status == 0)
+	struct afe3_dev *adev = container_of(inode->i_cdev, struct afe3_dev, cdev);
+	if (adev->afe_status == 0)
 		return -EBUSY;
-	if (p868dev->afe_status < 0)
-		return p868dev->afe_status;
+	if (adev->afe_status < 0)
+		return adev->afe_status;
 
-	file->private_data = p868dev;
+	file->private_data = adev;
 
 	return generic_file_open(inode, file);
 }
@@ -607,14 +607,14 @@ static int afe_cdev_release(struct inode *inode, struct file *file)
 static ssize_t afe_cdev_read(struct file *file, char __user *buf,
 			     size_t size, loff_t *offset)
 {
-	struct p868_dev *p868dev = file->private_data;
+	struct afe3_dev *adev = file->private_data;
 	size_t actual_size;
 	char* data_start;
 
 	if (*offset >= AFE_CONFIG_SIZE)
 		return 0;
 
-	data_start = p868dev->data + *offset;
+	data_start = adev->data + *offset;
 	actual_size = size;
 	if (*offset + size >= AFE_CONFIG_SIZE)
 		actual_size = AFE_CONFIG_SIZE - *offset;
@@ -629,7 +629,7 @@ static ssize_t afe_cdev_read(struct file *file, char __user *buf,
 static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 			      size_t size, loff_t *offset)
 {
-	struct p868_dev *p868dev = file->private_data;
+	struct afe3_dev *adev = file->private_data;
 	struct afe_sync_work *afe_sync;
 	size_t actual_size;
 	char* data_start;
@@ -637,7 +637,7 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	if (*offset >= AFE_CONFIG_SIZE)
 		return 0;
 
-	data_start = p868dev->data + *offset;
+	data_start = adev->data + *offset;
 	actual_size = size;
 	if (*offset + size >= AFE_CONFIG_SIZE)
 		actual_size = AFE_CONFIG_SIZE - *offset;
@@ -645,7 +645,7 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	afe_sync = kzalloc(sizeof(struct afe_sync_work), GFP_KERNEL);
 	if (!afe_sync)
 		return -ENOMEM;
-	afe_sync->p868dev = p868dev;
+	afe_sync->adev = adev;
 	INIT_WORK(&afe_sync->work, do_afe_sync);
 	afe_sync->offset = (int)*offset;
 	afe_sync->size = actual_size;
@@ -657,7 +657,7 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	}
 
 	*offset += actual_size;
-	queue_work(p868dev->workqueue, &afe_sync->work);
+	queue_work(adev->workqueue, &afe_sync->work);
 
 	return actual_size;
 }
@@ -669,9 +669,9 @@ static loff_t afe_cdev_llseek(struct file *file, loff_t offset, int origin)
 
 static int afe_cdev_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct p868_dev *p868dev = file->private_data;
+	struct afe3_dev *adev = file->private_data;
 
-	flush_workqueue(p868dev->workqueue);
+	flush_workqueue(adev->workqueue);
 
 	return 0;
 }
@@ -688,29 +688,29 @@ static const struct file_operations afe_cdev_ops = {
 
 int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, struct class *device_class)
 {
-	struct p868_dev *p868dev;
+	struct afe3_dev *adev;
 	struct afe_init_work *afe_init;
 	int ret;
 
-	p868dev = devm_kzalloc(&fdev->pdev->dev, sizeof(struct p868_dev), GFP_KERNEL);
-	if (!p868dev)
+	adev = devm_kzalloc(&fdev->pdev->dev, sizeof(struct afe3_dev), GFP_KERNEL);
+	if (!adev)
 		return -ENOMEM;
-	fdev->platform_device = p868dev;
-	p868dev->fdev = fdev;
-	p868dev->workqueue = create_singlethread_workqueue("AFE sync");
-	if (!p868dev->workqueue)
+	fdev->platform_device = adev;
+	adev->fdev = fdev;
+	adev->workqueue = create_singlethread_workqueue("AFE sync");
+	if (!adev->workqueue)
 		return -ENOMEM;
 
-	p868dev->devt = MKDEV(MAJOR(fpga_devt), 1);
-	cdev_init(&p868dev->cdev, &afe_cdev_ops);
-	ret = cdev_add(&p868dev->cdev, p868dev->devt, 1);
+	adev->devt = MKDEV(MAJOR(fpga_devt), 1);
+	cdev_init(&adev->cdev, &afe_cdev_ops);
+	ret = cdev_add(&adev->cdev, adev->devt, 1);
 	if (ret)
 		goto err_cdev;
 
-	p868dev->device = device_create_with_groups(device_class, &fdev->pdev->dev,
-		p868dev->devt, fdev, afe_attribute_groups, "target-afe");
-	if (IS_ERR(p868dev->device)) {
-		ret = PTR_ERR(p868dev->device);
+	adev->device = device_create_with_groups(device_class, &fdev->pdev->dev,
+		adev->devt, fdev, afe_attribute_groups, "target-afe");
+	if (IS_ERR(adev->device)) {
+		ret = PTR_ERR(adev->device);
 		printk(KERN_WARNING "Error %d while trying to create target-afe", ret);
 		goto err_device;
 	}
@@ -721,26 +721,26 @@ int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, st
 		ret = -ENOMEM;
 		goto err_work;
 	}
-	afe_init->p868dev = p868dev;
+	afe_init->adev = adev;
 	INIT_DELAYED_WORK(&afe_init->work, do_afe_init);
-	queue_delayed_work(p868dev->workqueue, &afe_init->work, msecs_to_jiffies(1000));
+	queue_delayed_work(adev->workqueue, &afe_init->work, msecs_to_jiffies(1000));
 
 	return 0;
 
 err_work:
-	device_destroy(device_class, p868dev->devt);
+	device_destroy(device_class, adev->devt);
 err_device:
-	cdev_del(&p868dev->cdev);
+	cdev_del(&adev->cdev);
 err_cdev:
-	destroy_workqueue(p868dev->workqueue);
+	destroy_workqueue(adev->workqueue);
 	return ret;
 }
 
 void target_fpga_platform_driver_remove(struct fpga_dev *fdev, struct class *device_class)
 {
-	struct p868_dev *p868dev;
-	p868dev = fdev->platform_device;
-	device_destroy(device_class, p868dev->devt);
-	cdev_del(&p868dev->cdev);
+	struct afe3_dev *adev;
+	adev = fdev->platform_device;
+	device_destroy(device_class, adev->devt);
+	cdev_del(&adev->cdev);
 }
 
