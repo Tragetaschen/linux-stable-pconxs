@@ -51,7 +51,19 @@
 #define FPGA_DOSE_RATE_MAX_ENERGY	(FPGA_DOSE_RATE_BASE + 0x44)
 #define FPGA_DOSE_RATE_BIT_SHIFTS	(FPGA_DOSE_RATE_BASE + 0x48)
 
+#define AFE_SERIAL_SIZE 80
 #define AFE_CONFIG_SIZE 1024
+
+struct afe3_dev {
+	struct fpga_dev *fdev;
+	dev_t devt;
+	struct cdev cdev;
+	struct device *device;
+	struct workqueue_struct *workqueue;
+	int afe_status;
+	char serial[AFE_SERIAL_SIZE];
+	char data[AFE_CONFIG_SIZE];
+};
 
 static void afe3_write(struct device *dev, u32 cmd, u32 index, u32 data)
 {
@@ -255,6 +267,14 @@ static ssize_t bit_shifts_store(struct device *dev, struct device_attribute *att
 	return count;
 }
 
+static ssize_t serial_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
+	struct afe3_dev *adev = fdev->platform_device;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", adev->serial);
+}
+
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
 VALUE_RW(trigger_pause, FPGA_TRIGGER_PAUSE, "%d");
 VALUE_RO(baseline_variance_first, FPGA_VARIANCE_FIRST, "%d");
@@ -346,6 +366,7 @@ static struct attribute *signal_processing_group_attrs[] = {
 AFE3_RW(hv, 3, 2, 0);
 AFE3_RW(baseline, 8, 7, 0);
 AFE3_RW(config_version, 5, 4, 0);
+DEVICE_ATTR_RO(serial);
 
 AFE3_RO(v_dynode, 6, 0);
 AFE3_RO(v_anode, 6, 1);
@@ -370,6 +391,7 @@ static struct attribute *afe_group_attrs[] = {
 	&dev_attr_hv.attr,
 	&dev_attr_baseline.attr,
 	&dev_attr_config_version.attr,
+	&dev_attr_serial.attr,
 
 	&dev_attr_v_dynode.attr,
 	&dev_attr_v_anode.attr,
@@ -442,17 +464,6 @@ const struct attribute_group *afe_attribute_groups[] = {
 	NULL,
 };
 
-
-struct afe3_dev {
-	struct fpga_dev *fdev;
-	dev_t devt;
-	struct cdev cdev;
-	struct device *device;
-	struct workqueue_struct *workqueue;
-	int afe_status;
-	char data[AFE_CONFIG_SIZE];
-};
-
 struct afe_init_work {
 	struct afe3_dev *adev;
 	struct delayed_work work;
@@ -463,21 +474,35 @@ static void do_afe_init(struct work_struct *work)
 	struct afe_init_work *afe_init = container_of(work, struct afe_init_work, work.work);
 	struct afe3_dev *adev = afe_init->adev;
 	struct device *dev = &adev->fdev->pdev->dev;
+	u32* serial = (u32*)adev->serial;
 	u32* data = (u32*)adev->data;
 	int ret, i;
 
 	kfree(afe_init);
+
+	for (i=0; i<AFE_SERIAL_SIZE>>2; ++i)
+	{
+		ret = afe3_read(dev, 0xa, i, serial + i);
+		if (serial[i] == 0)
+			break;
+		if (ret != 0)
+			goto err;
+	}
+	adev->serial[AFE_SERIAL_SIZE-1]=0;
+
 	for (i=0; i<AFE_CONFIG_SIZE>>2; ++i)
 	{
 		ret = afe3_read(dev, 5, i, data + i);
 		if (ret != 0)
-		{
-			dev_err(dev, "AFE initialization failed at index %d: %d", i, ret);
-			adev->afe_status = ret;
-			return;
-		}
+			goto err;
 	}
+
 	adev->afe_status = 1;
+	return;
+
+err:
+	dev_err(dev, "AFE initialization failed at index %d: %d", i, ret);
+	adev->afe_status = ret;
 }
 
 struct afe_sync_work {
