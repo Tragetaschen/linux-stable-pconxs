@@ -60,7 +60,7 @@ struct afe3_dev {
 	struct cdev cdev;
 	struct device *device;
 	struct workqueue_struct *workqueue;
-	int afe_status;
+	int data_valid_chars;
 	char serial[AFE_SERIAL_SIZE];
 	char data[AFE_CONFIG_SIZE];
 };
@@ -495,14 +495,14 @@ static void do_afe_init(struct work_struct *work)
 		ret = afe3_read(dev, 5, i, data + i);
 		if (ret != 0)
 			goto err;
+		adev->data_valid_chars += 4;
 	}
 
-	adev->afe_status = 1;
 	return;
 
 err:
 	dev_err(dev, "AFE initialization failed at index %d: %d", i, ret);
-	adev->afe_status = ret;
+	adev->data_valid_chars = ret;
 }
 
 struct afe_sync_work {
@@ -538,10 +538,8 @@ static void do_afe_sync(struct work_struct *work)
 static int afe_cdev_open(struct inode *inode, struct file *file)
 {
 	struct afe3_dev *adev = container_of(inode->i_cdev, struct afe3_dev, cdev);
-	if (adev->afe_status == 0)
-		return -EBUSY;
-	if (adev->afe_status < 0)
-		return adev->afe_status;
+	if (adev->data_valid_chars < 0)
+		return adev->data_valid_chars;
 
 	file->private_data = adev;
 
@@ -560,6 +558,9 @@ static ssize_t afe_cdev_read(struct file *file, char __user *buf,
 	size_t actual_size;
 	char* data_start;
 
+	if (adev->data_valid_chars < 0)
+		return adev->data_valid_chars;
+
 	if (*offset >= AFE_CONFIG_SIZE)
 		return 0;
 
@@ -567,6 +568,9 @@ static ssize_t afe_cdev_read(struct file *file, char __user *buf,
 	actual_size = size;
 	if (*offset + size >= AFE_CONFIG_SIZE)
 		actual_size = AFE_CONFIG_SIZE - *offset;
+
+	if (*offset + actual_size > adev->data_valid_chars)
+		return -EBUSY;
 
 	if (copy_to_user(buf, data_start, actual_size))
 		return -EFAULT;
@@ -583,6 +587,9 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	size_t actual_size;
 	char* data_start;
 
+	if (adev->data_valid_chars < 0)
+		return adev->data_valid_chars;
+
 	if (*offset >= AFE_CONFIG_SIZE)
 		return 0;
 
@@ -590,6 +597,9 @@ static ssize_t afe_cdev_write(struct file *file, const char __user *buf,
 	actual_size = size;
 	if (*offset + size >= AFE_CONFIG_SIZE)
 		actual_size = AFE_CONFIG_SIZE - *offset;
+
+	if (*offset + actual_size > adev->data_valid_chars)
+		return -EBUSY;
 
 	afe_sync = kzalloc(sizeof(struct afe_sync_work), GFP_KERNEL);
 	if (!afe_sync)
