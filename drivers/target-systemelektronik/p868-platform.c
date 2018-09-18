@@ -21,6 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 #include "common-attributes.c"
 
@@ -56,6 +57,7 @@
 
 struct afe3_dev {
 	struct fpga_dev *fdev;
+	struct mutex mutex;
 	dev_t devt;
 	struct cdev cdev;
 	struct device *device;
@@ -65,22 +67,41 @@ struct afe3_dev {
 	char data[AFE_CONFIG_SIZE];
 };
 
-static void afe3_write(struct device *dev, u32 cmd, u32 index, u32 data)
+static int afe3_write(struct device *dev, u32 cmd, u32 index, u32 data)
 {
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
+	struct afe3_dev *adev = fdev->platform_device;
+	int ret;
+
+	ret = mutex_lock_interruptible(&adev->mutex);
+	if (ret < 0)
+		return ret;
+
 	bar_write(dev, cmd << 8 | index, FPGA_AFE3_COMMAND);
 	bar_write(dev, data, FPGA_AFE3_DATA);
 	// There's currently no way to know when it's done
 	msleep_interruptible(25);
+
+	mutex_unlock(&adev->mutex);
+	return 0;
 }
 
 static int afe3_read(struct device *dev, u32 cmd, u32 index, u32* data)
 {
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
+	struct afe3_dev *adev = fdev->platform_device;
+
 	u32 command, expected_value;
 	int attempts = 0;
+	int ret;
 	const int max_attempts = 5;
 
 	command = cmd << 8 | index;
 	expected_value = 0x55 << 16 | cmd << 8 | index;
+
+	ret = mutex_lock_interruptible(&adev->mutex);
+	if (ret < 0)
+		return ret;
 
 	bar_write(dev, command, FPGA_AFE3_COMMAND);
 	bar_write(dev, 0, FPGA_AFE3_DATA);
@@ -94,10 +115,15 @@ static int afe3_read(struct device *dev, u32 cmd, u32 index, u32* data)
 	while (command != expected_value && attempts < max_attempts);
 
 	if (attempts >= max_attempts)
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+	else
+	{
+		*data = bar_read(dev, FPGA_AFE3_DATA);
+		ret = 0;
+	}
 
-	*data = bar_read(dev, FPGA_AFE3_DATA);
-	return 0;
+	mutex_unlock(&adev->mutex);
+	return ret;
 }
 
 static ssize_t roi_show(struct device *dev, struct device_attribute *attr, char *buf, int offset)
@@ -138,10 +164,13 @@ static size_t roi_store(struct device *dev, struct device_attribute *attr, const
 #define __AFE3_WO(name, cmd, index) \
 	static ssize_t name##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 	{ \
+		int ret; \
 		u32 data;\
 		if (kstrtou32(buf, 0, &data)) \
 			return -EINVAL; \
-		afe3_write(dev, cmd, index, data); \
+		ret = afe3_write(dev, cmd, index, data); \
+		if (ret < 0) \
+			return ret; \
 		return count; \
 	}
 
@@ -483,10 +512,10 @@ static void do_afe_init(struct work_struct *work)
 	for (i=0; i<AFE_SERIAL_SIZE>>2; ++i)
 	{
 		ret = afe3_read(dev, 0xa, i, serial + i);
-		if (serial[i] == 0)
-			break;
 		if (ret != 0)
 			goto err;
+		if (serial[i] == 0)
+			break;
 	}
 	adev->serial[AFE_SERIAL_SIZE-1]=0;
 
@@ -656,6 +685,7 @@ int target_fpga_platform_driver_probe(struct fpga_dev *fdev, dev_t fpga_devt, st
 		return -ENOMEM;
 	fdev->platform_device = adev;
 	adev->fdev = fdev;
+	mutex_init(&adev->mutex);
 	adev->workqueue = create_singlethread_workqueue("AFE sync");
 	if (!adev->workqueue)
 		return -ENOMEM;
@@ -701,5 +731,6 @@ void target_fpga_platform_driver_remove(struct fpga_dev *fdev, struct class *dev
 	adev = fdev->platform_device;
 	device_destroy(device_class, adev->devt);
 	cdev_del(&adev->cdev);
+	mutex_destroy(&adev->mutex);
 }
 
