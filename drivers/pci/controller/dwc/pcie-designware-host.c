@@ -732,3 +732,17 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	val |= PORT_LOGIC_SPEED_CHANGE;
 	dw_pcie_wr_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, val);
 }
+
+void dw_pcie_msi_cfg_store(struct pcie_port *pp)
+{
+	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &pp->msi_enable);
+}
+
+void dw_pcie_msi_cfg_restore(struct pcie_port *pp)
+{
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_LO, 4,
+			    virt_to_phys((void *)pp->msi_data));
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4, 0);
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, pp->msi_enable);
+}
+
