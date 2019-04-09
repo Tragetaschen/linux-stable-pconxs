@@ -21,9 +21,9 @@
 #include <linux/pci-epf.h>
 
 /* Parameters for the waiting for link up routine */
-#define LINK_WAIT_MAX_RETRIES		10
-#define LINK_WAIT_USLEEP_MIN		90000
-#define LINK_WAIT_USLEEP_MAX		100000
+#define LINK_WAIT_MAX_RETRIES		200
+#define LINK_WAIT_USLEEP_MIN		4000
+#define LINK_WAIT_USLEEP_MAX		5000
 
 /* Parameters for the waiting for iATU enabled routine */
 #define LINK_WAIT_MAX_IATU_RETRIES	5
