@@ -1,0 +1,38 @@
+menuconfig TARGET_SYSTEMELEKTRONIK
+	bool "Target Systemelektronik Drivers"
+	depends on PCI
+	default y
+	help
+	  This option enables support for Target Systemelektronik drivers
+
+if TARGET_SYSTEMELEKTRONIK
+
+config TARGET_SYSTEMELEKTRONIK_FPGA
+	tristate "Target Systemelektronik FPGA"
+	depends on DMA_CMA
+	default y
+	help
+	  Say Y or M here to enable the Target Systemelektronik FPGA device driver
+
+choice
+	prompt "FPGA Type"
+	default TARGET_SYSTEMELEKTRONIK_P868
+	help
+	  Choose your FPGA implementation
+
+config TARGET_SYSTEMELEKTRONIK_P868
+	bool "P868"
+	depends on TARGET_SYSTEMELEKTRONIK_FPGA
+	help
+	  P868 Platform
+
+config TARGET_SYSTEMELEKTRONIK_U100
+	bool "U100"
+	depends on TARGET_SYSTEMELEKTRONIK_FPGA
+	help
+	  U100 Platform
+
+endchoice
+
+endif
+
