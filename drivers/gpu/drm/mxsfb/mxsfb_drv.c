@@ -220,7 +220,8 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 
 	ret = mxsfb_create_output(drm);
 	if (ret < 0) {
-		dev_err(drm->dev, "Failed to create outputs\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(drm->dev, "Failed to create outputs\n");
 		goto err_vblank;
 	}
 
