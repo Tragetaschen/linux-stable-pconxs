@@ -335,8 +335,8 @@ static const struct snd_kcontrol_new wm9712_spk_mux_controls =
 SOC_DAPM_ENUM("Route", wm9712_enum[3]);
 
 /* Capture to Phone mux */
-static const struct snd_kcontrol_new wm9712_capture_phone_mux_controls =
-SOC_DAPM_ENUM("Route", wm9712_enum[4]);
+//static const struct snd_kcontrol_new wm9712_capture_phone_mux_controls =
+//SOC_DAPM_ENUM("Route", wm9712_enum[4]);
 
 /* Capture left select */
 static const struct snd_kcontrol_new wm9712_capture_selectl_controls =
@@ -351,8 +351,8 @@ static const struct snd_kcontrol_new wm9712_mic_src_controls =
 SOC_DAPM_ENUM("Mic Source Select", wm9712_enum[7]);
 
 /* diff select */
-static const struct snd_kcontrol_new wm9712_diff_sel_controls =
-SOC_DAPM_ENUM("Route", wm9712_enum[11]);
+//static const struct snd_kcontrol_new wm9712_diff_sel_controls =
+//SOC_DAPM_ENUM("Route", wm9712_enum[11]);
 
 static const struct snd_soc_dapm_widget wm9712_dapm_widgets[] = {
 SND_SOC_DAPM_MUX("ALC Sidetone Mux", SND_SOC_NOPM, 0, 0,
@@ -361,8 +361,8 @@ SND_SOC_DAPM_MUX("Out3 Mux", SND_SOC_NOPM, 0, 0,
 	&wm9712_out3_mux_controls),
 SND_SOC_DAPM_MUX("Speaker Mux", SND_SOC_NOPM, 0, 0,
 	&wm9712_spk_mux_controls),
-SND_SOC_DAPM_MUX("Capture Phone Mux", SND_SOC_NOPM, 0, 0,
-	&wm9712_capture_phone_mux_controls),
+//SND_SOC_DAPM_MUX("Capture Phone Mux", SND_SOC_NOPM, 0, 0,
+//	&wm9712_capture_phone_mux_controls),
 SND_SOC_DAPM_MUX("Left Capture Select", SND_SOC_NOPM, 0, 0,
 	&wm9712_capture_selectl_controls),
 SND_SOC_DAPM_MUX("Right Capture Select", SND_SOC_NOPM, 0, 0,
@@ -371,8 +371,8 @@ SND_SOC_DAPM_MUX("Left Mic Select Source", SND_SOC_NOPM, 0, 0,
 	&wm9712_mic_src_controls),
 SND_SOC_DAPM_MUX("Right Mic Select Source", SND_SOC_NOPM, 0, 0,
 	&wm9712_mic_src_controls),
-SND_SOC_DAPM_MUX("Differential Source", SND_SOC_NOPM, 0, 0,
-	&wm9712_diff_sel_controls),
+//SND_SOC_DAPM_MUX("Differential Source", SND_SOC_NOPM, 0, 0,
+//	&wm9712_diff_sel_controls),
 SND_SOC_DAPM_MIXER("AC97 Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MIXER("Left HP Mixer", AC97_INT_PAGING, 9, 1,
 	&wm9712_hpl_mixer_controls[0], ARRAY_SIZE(wm9712_hpl_mixer_controls)),
