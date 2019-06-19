@@ -28,8 +28,10 @@
 #define FPGA_AFE3_BASE		0x700
 #define FPGA_MEASUREMENT_BASE	0xa00
 #define FPGA_DOSE_RATE_BASE	0xc00
+#define FPGA_FIR_BASE		0xd00
 
 #define FPGA_PREPAUSE		(FPGA_STREAM_BASE + 0x1c)
+#define FPGA_TRIGGER_SAMPLES	(FPGA_STREAM_BASE + 0x24)
 #define FPGA_TRIGGER_PAUSE	(FPGA_STREAM_BASE + 0x2c)
 
 #define FPGA_AFE3_COMMAND	(FPGA_AFE3_BASE + 0x00)
@@ -150,6 +152,31 @@ static size_t roi_store(struct device *dev, struct device_attribute *attr, const
 	return count;
 }
 
+static ssize_t fir_show(struct device *dev, struct device_attribute *attr, char *buf, int offset)
+{
+	int values[13];
+	int i;
+	for (i=0; i<13; ++i)
+		values[i] = (s16)bar_read(dev, FPGA_FIR_BASE + offset + i * 4);
+	return scnprintf(buf, PAGE_SIZE, "%d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+		values[0], values[1], values[2], values[3], values[4], values[5], values[6],
+		values[7], values[8], values[9], values[10], values[11], values[12]);
+}
+
+static size_t fir_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count, int offset)
+{
+	int ret, i;
+	int values[13];
+	ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d",
+		&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6],
+		&values[7], &values[8], &values[9], &values[10], &values[11], &values[12]);
+	if (ret != 13)
+		return -EINVAL;
+	for (i=0; i<13; ++i)
+		bar_write(dev, values[i], FPGA_FIR_BASE + offset + i * 4);
+	return count;
+}
+
 #define __AFE3_RO(name, cmd, index) \
 	static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
 	{ \
@@ -193,6 +220,17 @@ DEVICE_ATTR_RW(name)
 	static ssize_t name##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 	{ \
 		return roi_store(dev, attr, buf, count, offset); \
+	} \
+DEVICE_ATTR_RW(name)
+
+#define SP_FIR(name, offset) \
+	static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf) \
+	{ \
+		return fir_show(dev, attr, buf, offset); \
+	} \
+	static ssize_t name##_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
+	{ \
+		return fir_store(dev, attr, buf, count, offset); \
 	} \
 DEVICE_ATTR_RW(name)
 
@@ -305,6 +343,7 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr, ch
 }
 
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
+VALUE_RW(trigger_samples, FPGA_TRIGGER_SAMPLES, "%d");
 VALUE_RW(trigger_pause, FPGA_TRIGGER_PAUSE, "%d");
 VALUE_RO(baseline_variance_first, FPGA_VARIANCE_FIRST, "%d");
 VALUE_RO(baseline_variance_second, FPGA_VARIANCE_SECOND, "%d");
@@ -323,6 +362,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_pause.attr,
 	&dev_attr_resolution.attr,
 	&dev_attr_prepause.attr,
+	&dev_attr_trigger_samples.attr,
 	&dev_attr_trigger_pause.attr,
 	&dev_attr_baseline_variance_first.attr,
 	&dev_attr_baseline_variance_second.attr,
@@ -362,7 +402,14 @@ SP_ROI(fir_roi1, 0x108);
 SP_ROI(fir_roi2, 0x118);
 SP_ROI(roi15, 0x128);
 SP_ROI(roi16, 0x138);
-
+SP_FIR(fir_bank0, 0 * 13 * 4);
+SP_FIR(fir_bank1, 1 * 13 * 4);
+SP_FIR(fir_bank2, 2 * 13 * 4);
+SP_FIR(fir_bank3, 3 * 13 * 4);
+SP_FIR(fir_bank4, 4 * 13 * 4);
+SP_FIR(fir_bank5, 5 * 13 * 4);
+SP_FIR(fir_bank6, 6 * 13 * 4);
+SP_FIR(fir_bank7, 7 * 13 * 4);
 
 static struct attribute *signal_processing_group_attrs[] = {
 	&dev_attr_raw_sample_count.attr,
@@ -389,6 +436,14 @@ static struct attribute *signal_processing_group_attrs[] = {
 	&dev_attr_fir_roi2.attr,
 	&dev_attr_roi15.attr,
 	&dev_attr_roi16.attr,
+	&dev_attr_fir_bank0.attr,
+	&dev_attr_fir_bank1.attr,
+	&dev_attr_fir_bank2.attr,
+	&dev_attr_fir_bank3.attr,
+	&dev_attr_fir_bank4.attr,
+	&dev_attr_fir_bank5.attr,
+	&dev_attr_fir_bank6.attr,
+	&dev_attr_fir_bank7.attr,
 	NULL,
 };
 
