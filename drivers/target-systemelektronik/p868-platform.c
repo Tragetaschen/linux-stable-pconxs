@@ -450,6 +450,7 @@ static struct attribute *signal_processing_group_attrs[] = {
 AFE3_RW(hv, 3, 2, 0);
 AFE3_RW(baseline, 8, 7, 0);
 AFE3_RW(config_version, 5, 4, 0);
+AFE3_RW(wobble, 0x30, 0x31, 0);
 DEVICE_ATTR_RO(serial);
 
 AFE3_RO(v_dynode, 6, 0);
@@ -475,6 +476,7 @@ static struct attribute *afe_group_attrs[] = {
 	&dev_attr_hv.attr,
 	&dev_attr_baseline.attr,
 	&dev_attr_config_version.attr,
+	&dev_attr_wobble.attr,
 	&dev_attr_serial.attr,
 
 	&dev_attr_v_dynode.attr,
