@@ -33,6 +33,7 @@
 #define FPGA_PREPAUSE		(FPGA_STREAM_BASE + 0x1c)
 #define FPGA_TRIGGER_SAMPLES	(FPGA_STREAM_BASE + 0x24)
 #define FPGA_TRIGGER_PAUSE	(FPGA_STREAM_BASE + 0x2c)
+#define FPGA_TRIGGER_WINDOW	(FPGA_STREAM_BASE + 0x30)
 
 #define FPGA_AFE3_COMMAND	(FPGA_AFE3_BASE + 0x00)
 #define FPGA_AFE3_DATA		(FPGA_AFE3_BASE + 0x04)
@@ -345,6 +346,7 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr, ch
 VALUE_RW(prepause, FPGA_PREPAUSE, "%d");
 VALUE_RW(trigger_samples, FPGA_TRIGGER_SAMPLES, "%d");
 VALUE_RW(trigger_pause, FPGA_TRIGGER_PAUSE, "%d");
+VALUE_RW(trigger_window, FPGA_TRIGGER_WINDOW, "%d");
 VALUE_RO(baseline_variance_first, FPGA_VARIANCE_FIRST, "%d");
 VALUE_RO(baseline_variance_second, FPGA_VARIANCE_SECOND, "%d");
 VALUE_WO(baseline_variance_reset, FPGA_VARIANCE_FIRST);
@@ -364,6 +366,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_prepause.attr,
 	&dev_attr_trigger_samples.attr,
 	&dev_attr_trigger_pause.attr,
+	&dev_attr_trigger_window.attr,
 	&dev_attr_baseline_variance_first.attr,
 	&dev_attr_baseline_variance_second.attr,
 	&dev_attr_baseline_variance_reset.attr,
