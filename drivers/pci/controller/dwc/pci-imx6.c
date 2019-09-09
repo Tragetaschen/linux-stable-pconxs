@@ -844,25 +844,19 @@ static void pci_imx_pm_turn_off(struct imx6_pcie *imx6_pcie)
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 			   IMX6SX_GPR12_PCIE_PM_TURN_OFF,
 			   IMX6SX_GPR12_PCIE_PM_TURN_OFF);
-       regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
-			  IMX6SX_GPR12_PCIE_PM_TURN_OFF, 0);
+	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+			   IMX6SX_GPR12_PCIE_PM_TURN_OFF, 0);
 }
 
 static int pci_imx_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
-	struct dw_pcie *pci = imx6_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_cfg_store(pp);
 
 	pci_imx_pm_turn_off(imx6_pcie);
 	clk_disable_unprepare(imx6_pcie->pcie);
 	clk_disable_unprepare(imx6_pcie->pcie_phy);
 	clk_disable_unprepare(imx6_pcie->pcie_bus);
 	clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
-	//regulator_disable(imx6_pcie->vpcie);
 	return 0;
 }
 

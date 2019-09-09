@@ -680,7 +680,6 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE +
 					(ctrl * MSI_REG_CTRL_BLOCK_SIZE),
 				    4, ~0);
-		pp->irq_status[ctrl] = 0;
 	}
 
 	/* Setup RC BARs */
@@ -756,16 +755,22 @@ static int target_increase_payload(struct pcie_port *pp)
 	return 0;
 }
 
-void dw_pcie_msi_cfg_store(struct pcie_port *pp)
-{
-	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &pp->msi_enable);
-}
-
 void dw_pcie_msi_cfg_restore(struct pcie_port *pp)
 {
+	u32 ctrl, num_ctrls;
+	u64 msi_target;
+	msi_target = (u64)pp->msi_data;
+
 	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_LO, 4,
-			    virt_to_phys((void *)pp->msi_data));
-	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4, 0);
-	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, pp->msi_enable);
+			    lower_32_bits(msi_target));
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4,
+			    upper_32_bits(msi_target));
+
+	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+	for (ctrl = 0; ctrl < num_ctrls; ctrl++) {
+		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_MASK +
+					(ctrl * MSI_REG_CTRL_BLOCK_SIZE),
+				    4, ~pp->irq_status[ctrl]);
+	}
 }
 
