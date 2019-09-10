@@ -144,6 +144,7 @@ static struct attribute *fpga_attrs[] = {
 	&dev_attr_build_time.attr,
 	&dev_attr_build_number.attr,
 	&dev_attr_version.attr,
+	&dev_attr_flash_type.attr,
 	&dev_attr_adc.attr,
 	&dev_attr_fpga_dac1.attr,
 	&dev_attr_fpga_dac2.attr,

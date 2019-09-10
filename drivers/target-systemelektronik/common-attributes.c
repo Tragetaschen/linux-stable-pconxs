@@ -23,7 +23,6 @@
 
 #define FPGA_SYSTEM_BASE	0x000
 #define FPGA_ADC_BASE		0x100
-#define FPGA_FLASH_BASE		0x200
 #define FPGA_STREAM_BASE	0x500
 
 #define FPGA_EXT_FREQ		(FPGA_SYSTEM_BASE + 0x00)
@@ -117,6 +116,15 @@ static ssize_t version_show(struct device *dev, struct device_attribute *attr, c
 	return scnprintf(buf, PAGE_SIZE, "%s\n", values);
 }
 
+static ssize_t flash_type_show(struct device *dev, struct device_attribute *attr, char* buf)
+{
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
+	const char* string = fdev->flash_type == N25Q ? "N25Q" : "EPCQ";
+	u32 flash_type = bar_read(dev, FPGA_FLASH_TYPE);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x (%s)\n", flash_type, string);
+}
+
 #define BIT_MIRROR(x) ((x&0x80)>>7 | (x&0x40)>>5 | (x&0x20)>>3 | (x&0x10)>>1 | \
 		       (x&0x08)<<1 | (x&0x04)<<3 | (x&0x02)<<5 | (x&0x01)<<7)
 #define WAIT_STATUS while (bar_read(dev, FPGA_FLASH_STATUS) != 2)
@@ -126,11 +134,20 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 	u32 sector_mask;
 	int pos;
 	int flash_offset = (int)offset;
-	int flash_word;
+	u32 flash_word;
+	u32 new_flash_state;
 	struct device *dev = kobj_to_dev(kobj);
+	struct fpga_dev *fdev = dev_get_drvdata(dev);
 
 	if ((count & 0x3) != 0) // Unaligned
 		return -EINVAL;
+
+	if (offset == 0) {
+		if (fdev->flash_type == EPCQ)
+			fdev->flash_state = 0xf0000000;
+		else
+			fdev->flash_state = 0;
+	}
 
 	sector_mask = bar_read(dev, FPGA_FLASH_SECTOR_SIZE) - 1;
 
@@ -144,6 +161,14 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 		flash_word |= BIT_MIRROR(buffer[pos + 2]) << 8;
 		flash_word |= BIT_MIRROR(buffer[pos + 1]) << 16;
 		flash_word |= BIT_MIRROR(buffer[pos + 0]) << 24;
+
+		if (fdev->flash_type == EPCQ) {
+			new_flash_state = flash_word << 28;
+			flash_word >>= 4;
+			flash_word |= fdev->flash_state;
+			fdev->flash_state = new_flash_state;
+		}
+
 		bar_write(dev, flash_word, FPGA_FLASH_DATA);
 		WAIT_STATUS;
 		bar_write(dev, 0x09000000 | flash_offset, FPGA_FLASH_COMMAND);
@@ -170,6 +195,7 @@ VALUE_RO(pll_mult, FPGA_PLL_MULT, "%d");
 VALUE_RO(build_time, FPGA_BUILD_TIME, "%d");
 VALUE_RO(build_number, FPGA_BUILD_NUMBER, "%d");
 DEVICE_ATTR_RO(version);
+DEVICE_ATTR_RO(flash_type);
 VALUE_RW(adc, FPGA_ADC_CONFIG, "0x%x");
 BIN_ATTR(firmware, S_IWUSR, NULL, firmware_store, 0);
 VALUE_RW(trigger, FPGA_TRIGGER, "%d");

@@ -6,10 +6,18 @@
 #include <linux/sysfs.h>
 #include <linux/cdev.h>
 
+#define FPGA_FLASH_BASE		0x200
+#define FPGA_FLASH_TYPE		(FPGA_FLASH_BASE + 0x00)
+
 struct fpga_ringbuffer {
 	int size;
 	void *start;
 	dma_addr_t dma_handle;
+};
+
+enum flash_type {
+	N25Q,
+	EPCQ,
 };
 
 struct fpga_dev {
@@ -33,6 +41,9 @@ struct fpga_dev {
 
 	u32 timestamp_reset;
 	int timestamp_irq;
+
+	enum flash_type flash_type;
+	u32 flash_state;
 
 	void* platform_device;
 };

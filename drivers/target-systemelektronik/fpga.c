@@ -316,10 +316,25 @@ static const struct file_operations fpga_cdev_ops = {
 	.mmap		= fpga_cdev_mmap,
 };
 
+static enum flash_type get_flash_type(struct device *dev, u32 flash_type)
+{
+	if ((flash_type & 0x00ffff00) == 0x00ba1800) {
+		return N25Q;
+	}
+	else if ((flash_type & 0x0000ff00) == 0x00001800) {
+		return EPCQ;
+	}
+	else {
+		dev_err(dev, "Invalid flash type: %x", flash_type);
+		return N25Q;
+	}
+}
+
 static int fpga_driver_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
 	int ret;
+	u32 flash_type;
 	struct fpga_dev *fdev;
 
 	if (pdev->vendor != PCI_VENDOR_ID_TARGET || pdev->device != PCI_DEVICE_ID_TARGET_FPGA)
@@ -375,6 +390,9 @@ static int fpga_driver_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev, "AER not supported\n");
 
 	pci_set_master(pdev);
+
+	flash_type = bar_read(&pdev->dev, FPGA_FLASH_TYPE);
+	fdev->flash_type = get_flash_type(&pdev->dev, flash_type);
 
 	fdev->dev = MKDEV(MAJOR(fpga_devt), 0);
 
