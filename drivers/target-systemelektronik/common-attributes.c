@@ -135,19 +135,10 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 	int pos;
 	int flash_offset = (int)offset;
 	u32 flash_word;
-	u32 new_flash_state;
 	struct device *dev = kobj_to_dev(kobj);
-	struct fpga_dev *fdev = dev_get_drvdata(dev);
 
 	if ((count & 0x3) != 0) // Unaligned
 		return -EINVAL;
-
-	if (offset == 0) {
-		if (fdev->flash_type == EPCQ)
-			fdev->flash_state = 0xf0000000;
-		else
-			fdev->flash_state = 0;
-	}
 
 	sector_mask = bar_read(dev, FPGA_FLASH_SECTOR_SIZE) - 1;
 
@@ -161,13 +152,6 @@ static ssize_t firmware_store(struct file *filep, struct kobject *kobj, struct b
 		flash_word |= BIT_MIRROR(buffer[pos + 2]) << 8;
 		flash_word |= BIT_MIRROR(buffer[pos + 1]) << 16;
 		flash_word |= BIT_MIRROR(buffer[pos + 0]) << 24;
-
-		if (fdev->flash_type == EPCQ) {
-			new_flash_state = flash_word << 28;
-			flash_word >>= 4;
-			flash_word |= fdev->flash_state;
-			fdev->flash_state = new_flash_state;
-		}
 
 		bar_write(dev, flash_word, FPGA_FLASH_DATA);
 		WAIT_STATUS;

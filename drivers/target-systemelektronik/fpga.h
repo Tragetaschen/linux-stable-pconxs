@@ -43,7 +43,6 @@ struct fpga_dev {
 	int timestamp_irq;
 
 	enum flash_type flash_type;
-	u32 flash_state;
 
 	void* platform_device;
 };
