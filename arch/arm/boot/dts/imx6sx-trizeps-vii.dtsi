@@ -52,7 +52,8 @@
 	model = "Keith&Koep Trizeps VII SX SoM";
 	compatible = "keithkoep,imx6sx-trizeps-vii", "fsl,imx6sx";
 
-	memory {
+	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
 	};
 
