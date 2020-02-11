@@ -1720,7 +1720,7 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 	if (!READ_ONCE(connector->registered) && crtc) {
 		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] is not registered\n",
 				 connector->base.id, connector->name);
-		return -EINVAL;
+		// return -EINVAL;
 	}
 
 	if (conn_state->crtc == crtc)
