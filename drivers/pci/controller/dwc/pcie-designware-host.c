@@ -718,3 +718,20 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	dw_pcie_dbi_ro_wr_dis(pci);
 }
 EXPORT_SYMBOL_GPL(dw_pcie_setup_rc);
+
+void dw_pcie_msi_cfg_store(struct pcie_port *pp)
+{
+	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &pp->msi_mask);
+}
+
+void dw_pcie_msi_cfg_restore(struct pcie_port *pp)
+{
+	u64 msi_target = (u64)pp->msi_data;
+
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_LO, 4,
+			    lower_32_bits(msi_target));
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4,
+			    upper_32_bits(msi_target));
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, ~0);
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, pp->msi_mask);
+}
