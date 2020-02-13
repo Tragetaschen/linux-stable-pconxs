@@ -157,6 +157,15 @@ config DRM_PANEL_ORISETECH_OTM8009A
 	  Say Y here if you want to enable support for Orise Technology
 	  otm8009a 480x800 dsi 2dl panel.
 
+config DRM_PANEL_ORTUSTECH_COM32H3N89ULC
+	tristate "OrtusTech COM32H3N89ULC RGB/SPI panel"
+	depends on OF && SPI
+	select VIDEOMODE_HELPERS
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for COM32H3N89ULC RGB
+	  panel. To compile this driver as a module, choose M here.
+
 config DRM_PANEL_OSD_OSD101T2587_53TS
 	tristate "OSD OSD101T2587-53TS DSI 1920x1200 video mode panel"
 	depends on OF
