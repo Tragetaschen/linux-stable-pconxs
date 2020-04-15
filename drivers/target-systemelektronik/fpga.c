@@ -268,6 +268,8 @@ static ssize_t fpga_cdev_read(struct file *filp, char __user *buf,
 	if (wait_result < 0)
 		return wait_result;
 
+	reinit_completion(&fdev->data_has_arrived);
+
 	bytes_to_read = atomic_xchg(&fdev->unread_data_items, 0);
 
 	from_position = fdev->unsent_start;
