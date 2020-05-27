@@ -346,19 +346,19 @@
 
 		pinctrl_usb_otg1: usbotg1grp {
 			fsl,pins = <
-				MX6SX_PAD_GPIO1_IO09__GPIO1_IO_9	0x10b0
+				MX6SX_PAD_GPIO1_IO09__USB_OTG1_PWR	0x10b0
 			>;
 		};
 
 		pinctrl_usb_otg1_id: usbotg1idgrp {
 			fsl,pins = <
-				MX6SX_PAD_GPIO1_IO10__ANATOP_OTG1_ID	0x17059
+				MX6SX_PAD_GPIO1_IO10__ANATOP_OTG1_ID	0x1b018
 			>;
 		};
 
 		pinctrl_usb_otg2: usbot2ggrp {
 			fsl,pins = <
-				MX6SX_PAD_GPIO1_IO12__GPIO1_IO_12	0x10b0
+				MX6SX_PAD_GPIO1_IO12__USB_OTG2_PWR	0x10b0
 			>;
 		};
 
