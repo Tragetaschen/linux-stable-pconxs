@@ -86,6 +86,7 @@
 			label = "left-blue";
 			reg = <2>;
 			type = <PCA955X_TYPE_LED>;
+			linux,default-trigger = "heartbeat";
 		};
 		led@3 {
 			reg = <3>;
@@ -112,6 +113,7 @@
 			label = "right-blue";
 			reg = <2>;
 			type = <PCA955X_TYPE_LED>;
+			linux,default-trigger = "heartbeat";
 		};
 		led@3 {
 			reg = <3>;
